@@ -1,5 +1,8 @@
 # Acta
 
+[![CI](https://github.com/simaovc32/acta/actions/workflows/ci.yml/badge.svg)]
+(https://github.com/simaovc32/acta/actions/workflows/ci.yml)
+
 A self-hosted personal health dashboard. It turns the raw data of a cheap fitness strap
 into a minute-by-minute energy model, nightly sleep scores, recovery and training-load
 signals, and puts food, workouts, money and planning in the same app.
