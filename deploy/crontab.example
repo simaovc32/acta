@@ -1,0 +1,5 @@
+# Housekeeping (crontab -e). Paths assume the venv at ~/acta/.venv and data in ~/acta-data.
+ACTA_DATA_DIR=/home/YOU/acta-data
+30 2 * * *   /home/YOU/acta/.venv/bin/acta backup          # nightly snapshot of acta.db, keeps 14
+45 22 * * *  /home/YOU/acta/.venv/bin/acta prices          # investment prices after US close
+30 7 1 * *   /home/YOU/acta/.venv/bin/acta report          # last month's report into data/reports

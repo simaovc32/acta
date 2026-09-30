@@ -1,0 +1,14 @@
+# Example systemd *user* unit: the API + dashboard.
+#   cp deploy/acta-*.service deploy/acta-*.timer ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now acta-api acta-ingest.timer
+[Unit]
+Description=Acta API and dashboard
+
+[Service]
+Environment=ACTA_DATA_DIR=%h/acta-data
+Environment=ACTA_GADGETBRIDGE_DB=%h/sync/Gadgetbridge.db
+ExecStart=%h/acta/.venv/bin/acta serve --host 127.0.0.1 --port 8000
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

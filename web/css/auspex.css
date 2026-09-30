@@ -1,0 +1,104 @@
+/* ============== AUSPEX ============== */
+/* Layout is "Register": one column, five groups behind a segmented control,
+   so the eleven questions never appear at once and the feed always starts at
+   the same place. --h is the question's domain hue (provenance); --accent
+   stays amber for every interactive state (chrome). */
+#screen-auspex { padding: 16px 18px 96px; max-width: 812px; margin: 0 auto; }
+.aux-head { display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 14px; margin-bottom: 16px; }
+.aux-title { font-size: 19px; font-weight: 500; color: var(--ink); margin: 0 0 4px; }
+.aux-sub { font-size: 12px; color: var(--ink-3); margin: 0; line-height: 1.5; max-width: 48ch; }
+.aux-headr { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
+.aux-since, .aux-tally { font-size: 12px; color: var(--ink-3); font-family:var(--sans);font-weight:500;
+  font-variant-numeric: tabular-nums; letter-spacing:0.01em; white-space: nowrap; }
+.aux-since { border: 1px solid var(--line-2); border-radius: 999px; padding: 3px 9px; }
+
+/* Segmented control — the app's own .subtabs/.subtab, only the counter added */
+.aux-segs { display: flex; margin-bottom: 14px; }
+.aux-seg { gap: 7px; }
+.aux-seg-n { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums;
+  color: var(--ink-3); letter-spacing: 0.04em; }
+.aux-seg.active .aux-seg-n { color: var(--accent); }
+.aux-seg-done .aux-seg-n { color: var(--accent); }
+
+/* Ask block: fixed floor so the feed begins at the same y whatever is selected */
+.aux-pane { display: flex; flex-direction: column; gap: 6px; min-height: 150px; }
+.aux-slot { display: flex; align-items: baseline; gap: 11px; width: 100%;
+  text-align: left; font: inherit; font-size: 12.5px; line-height: 1.45;
+  color: var(--ink-2); background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: 11px; padding: 10px 13px; cursor: pointer;
+  transition: border-color .14s, color .14s, background .14s; }
+.aux-slot:hover:not(:disabled) { color: var(--ink);
+  border-color: color-mix(in oklch, var(--accent) 45%, transparent);
+  background: color-mix(in oklch, var(--accent) 7%, var(--panel)); }
+.aux-slot:disabled { opacity: 0.4; cursor: default; }
+.aux-slot-x { border-style: dashed; }
+.aux-slot-t { flex: 1; }
+.aux-idx { font-family:var(--sans);font-weight:500; font-size: 12px; font-variant-numeric: tabular-nums;
+  letter-spacing:0.01em; color: var(--h, var(--ink-3)); flex: none; opacity: 0.9; }
+.aux-slot-s { font-family:var(--sans);font-weight:500; font-size: 12px; letter-spacing:0.01em;
+  color: var(--ink-3); flex: none; white-space: nowrap; }
+.aux-slot-read .aux-slot-s { color: var(--accent); }
+.aux-note { font-size: 12px; color: var(--ink-3); line-height: 1.5; margin: 5px 2px 0; }
+
+/* Feed */
+.aux-feed { display: flex; flex-direction: column; gap: 12px; margin-top: 22px; }
+.aux-card { border: 1px solid var(--line-2); border-radius: 13px; padding: 14px 15px;
+  background: var(--panel); }
+.aux-card[style*="--h"] { border-color: color-mix(in oklch, var(--h) 24%, var(--line-2)); }
+.aux-card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.aux-card-q { flex: 1; font-size: 12px; color: var(--ink-3); line-height: 1.45; }
+.aux-lead { font-size: 15px; line-height: 1.5; color: var(--ink); margin: 0;
+  max-width: 46ch; text-wrap: balance; }
+.aux-lead-long { font-size: 13.5px; line-height: 1.55; max-width: 58ch; }
+.aux-prose { margin-top: 10px; font-size: 13px; line-height: 1.62; color: var(--ink-2); }
+.aux-prose p { margin: 0 0 9px; }
+.aux-prose p:last-child { margin-bottom: 0; }
+.aux-prose b { color: var(--ink); font-weight: 500; }
+/* Numbers stay at full ink in a dimmed paragraph — the whole scanning trick */
+.aux-n { font-family: var(--mono); font-size: 0.93em; font-variant-numeric: tabular-nums;
+  color: var(--ink); }
+.aux-list { margin: 0 0 9px; padding-left: 15px; list-style: none; }
+.aux-list li { margin-bottom: 5px; position: relative; }
+.aux-list li::before { content: ""; position: absolute; left: -15px; top: 0.62em;
+  width: 8px; height: 1px; background: var(--h, var(--ink-3)); opacity: 0.8; }
+.aux-card-meta { margin-top: 12px; padding-top: 9px; border-top: 1px solid var(--line-2);
+  font-size: 12px; color: var(--ink-3); font-family: var(--mono);
+  font-variant-numeric: tabular-nums; }
+
+/* Pending: the real pipeline, no progress bar — latency is genuinely unknown */
+.aux-pending { border-style: dashed; }
+.aux-elapsed { font-family:var(--sans);font-weight:500; font-size: 12px; font-variant-numeric: tabular-nums;
+  letter-spacing:0.01em; color: var(--ink-3); flex: none; }
+.aux-stages { display: flex; flex-direction: column; gap: 7px; }
+.aux-stage { display: flex; align-items: baseline; gap: 9px; font-size: 12px;
+  color: var(--ink-3); opacity: 0.45; transition: opacity .25s, color .25s; }
+.aux-stage.done { opacity: 0.7; }
+.aux-stage.now { opacity: 1; color: var(--ink); }
+.aux-stage-d { font-size: 12px; color: var(--ink-3); }
+.aux-dot { width: 6px; height: 6px; border-radius: 50%; flex: none;
+  background: var(--line-2); transition: background .25s; }
+.aux-stage.done .aux-dot { background: var(--accent); opacity: 0.55; }
+.aux-stage.now .aux-dot { background: var(--accent);
+  animation: aux-pulse 1.1s ease-in-out infinite; }
+@keyframes aux-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+.aux-error { border-color: color-mix(in oklch, var(--hue-vitals) 50%, transparent); }
+.aux-empty { padding: 26px 2px; }
+.aux-empty p { margin: 0; font-size: 13px; color: var(--ink-2); }
+.aux-empty-sub { margin-top: 5px !important; font-size: 12px !important; color: var(--ink-3) !important; }
+.aux-loading { color: var(--ink-3); font-size: 12.5px; padding: 40px 0; text-align: center; }
+
+@media (max-width: 560px) {
+  #screen-auspex { padding: 14px 12px 110px; }
+  .aux-head { flex-direction: column; gap: 8px; }
+  .aux-headr { flex-direction: row; align-items: center; gap: 10px; }
+  /* Five segments cannot fit one 393px row at this type size, so 3 + 2 rather
+     than a scroller — nothing hides off-screen. */
+  .aux-segs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px;
+    width: 100%; border-radius: 18px; }
+  .aux-seg { justify-content: center; padding: 9px 4px; font-size: 12px;
+    grid-column: span 2; min-height: 40px; }
+  .aux-seg:nth-child(4), .aux-seg:nth-child(5) { grid-column: span 3; }
+  .aux-lead { font-size: 14.5px; }
+}

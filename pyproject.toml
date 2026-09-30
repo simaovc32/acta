@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acta"
+version = "1.0.0"
+description = "A personal health dashboard: sleep scoring, an energy model and training load from a Huami/Zepp strap, plus food, workouts and finance."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Simão Vicente Costa" }]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "pydantic>=2.5",
+    "httpx>=0.27",      # the demo seeds itself through the real API (FastAPI's TestClient)
+    "requests>=2.31",   # optional LLM / price lookups
+    "tzlocal>=5",       # the machine's time zone name, on every OS
+    "tzdata; sys_platform == 'win32'",   # Windows ships no IANA time-zone database
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[project.scripts]
+acta = "acta.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore:Using .httpx. with .starlette.testclient."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "E501",   # long lines: the prose comments explain *why* and are kept whole
+    "E701",   # compact one-line guards are used deliberately in a few places
+    "E731",   # small lambdas as local helpers
+    "B008",   # FastAPI's Depends()/Query() in defaults is the framework idiom
+    "UP007",  # Optional[...] kept: it reads better in pydantic request models
+    "UP045",
+    "B905",   # zip() truncation is intended where series of different lengths are paired
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E702", "E741"]   # the tests favour dense one-line setup

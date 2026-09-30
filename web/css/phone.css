@@ -1,0 +1,366 @@
+/* ============================================================
+   DESKTOP-ONLY — Biocharge sub-tab refinements (phone unchanged).
+   ============================================================ */
+@media (min-width: 701px) {
+  /* Biocharge ring box: bigger ring, rows pushed lower, centred card
+     (Sleep-tab score card is 240px wide with a 150px ring — matched here). */
+  /* All three top boxes stretch to equal height so their top AND bottom
+     edges line up. Each panel is a flex column; panel-body takes the leftover
+     space via flex:1 (NOT height:100%, which overflowed the panel-head and
+     clipped content). */
+  .bio-tab-panel, .snap-panel { display: flex; flex-direction: column; }
+
+  /* Biocharge: centre the ring card vertically in the filled height. */
+  .bio-tab-panel .panel-body {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+  }
+  .bio-wrap.bio-tab-card {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    gap: 20px;
+  }
+  .bio-wrap.bio-tab-card .bio-state { justify-items: start; gap: 14px; }
+  .bio-wrap.bio-tab-card .bio-ring { width: 150px; height: 150px; }
+  .bio-wrap.bio-tab-card .bio-ring svg { width: 100%; height: 100%; }
+  .bio-wrap.bio-tab-card .bio-ring .center .num { font-size: 46px; }
+
+  /* Snapshot: stack Now → Last HR → Drain/Projected/Active → Steps, and
+     spread them across the filled height (flex:1 → no overflow, no clipping). */
+  .snap-panel .panel-body {
+    flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .snap-grid-top { grid-template-columns: 1fr !important; gap: 16px !important; }
+
+  /* Energy chart: let the graph fill the (now taller) box, with a little
+     breathing room at the bottom, instead of sitting short at the top. */
+  .energy-panel { display: flex; flex-direction: column; }
+  .energy-panel .panel-body { flex: 1; display: flex; flex-direction: column; }
+  .energy-panel #bio-day-strip {
+    flex: 1; display: flex; flex-direction: column;
+    padding-bottom: 18px;
+  }
+  .energy-panel #bio-day-strip .line-svg { flex: 1; min-height: 150px; }
+}
+
+/* ============================================================
+   MOBILE (Phase 1) — phone layout. Desktop is untouched above.
+   Breakpoint 700px covers all phones incl. Nothing Phone 3a
+   (~393px CSS width). Inline grid styles on health panels need
+   !important to override.
+   ============================================================ */
+@media (max-width: 700px) {
+  body { padding-bottom: 108px; }
+
+  /* every card grid collapses to a single column, snapshot/hero first */
+  .grid { grid-template-columns: 1fr !important; gap: 12px !important; padding: 10px !important; }
+
+  /* topbar: tighter, keep sticky + actions reachable */
+  .topbar { padding: 10px 14px; }
+  .brand { font-size: 12px; gap: 6px; }
+  .brand .last-update { margin-left: 8px; }
+  .topright { gap: 10px; }
+  /* ---- phone app bar: brand · time, then refresh + battery + Log.
+     All three controls stay visible; only the avatar and the "Last update:"
+     wording are dropped, since neither survives 393px usefully. ---- */
+  .topbar { padding: 8px 14px 10px; gap: 10px; }
+  .brand { gap: 8px; font-size: 12px; letter-spacing:0.01em; }
+  .brand .last-update {
+    margin-left: 6px; padding-left: 8px;
+    font-size: 0;                 /* hides the "Last update:" prefix text node */
+  }
+  .brand .last-update span { font-size: 12px; color: var(--ink-3); }
+  .brand .refresh-btn {
+    width: 30px; height: 30px; border-radius: 9px;
+    background: var(--panel-2); border: 1px solid var(--line-2);
+    justify-content: center; margin-left: auto;
+  }
+  .brand .refresh-btn svg { width: 13px; height: 13px; }
+  /* battery is no longer PC-only — it is the one thing that silently costs a
+     night of data when it runs out, so it belongs on the phone most of all */
+  .brand .battery-chip { display: inline-flex !important; flex: none; }
+  /* the detection warning matters most on the phone, where sessions actually
+     happen — keep it, but drop to the icon+count so it fits beside the rest */
+  .brand .pai-warn-btn.show { display: inline-flex !important; flex: none; padding: 3px 6px; }
+  .brand #log-workout-btn-pc {
+    display: inline-flex !important; height: 30px; padding: 0 12px;
+    border-radius: 9px; background: var(--accent-soft);
+    border-color: color-mix(in oklch, var(--accent) 40%, transparent);
+    color: var(--accent); margin-left: 0;
+  }
+  .topright { display: none; }
+  .log-workout-btn .lw-full { display: none; }
+  .log-workout-btn .lw-short { display: inline; }
+
+  /* remove TODAY·KEY and CALENDAR cards from the main screen on mobile */
+  #screen-main .panel:has(#task-list),
+  #screen-main .panel:has(#today-events) { display: none; }
+
+  /* floating tab bar: hide productivity, add safe-area gap for gesture nav */
+  .tab[data-tab="productivity"] { display: none; }
+  .bottom-tabs { bottom: calc(14px + env(safe-area-inset-bottom)); max-width: calc(100vw - 20px); }
+  .tab { padding: 10px 14px; }
+
+  /* health sub-tabs become a 2x2 square (2 top, 2 bottom) */
+  .health-head { flex-wrap: wrap; }
+  #health-subtabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  #health-subtabs .subtab { justify-content: center; }
+  /* Day navigation is a primary control on the phone too, so it gets its own
+     full-width row under the sub-tabs rather than being hidden. */
+  .daynav { width: 100%; justify-content: center; margin-top: 8px; }
+  .daycal { right: 50%; transform: translateX(50%); }
+
+  /* sleep score ring + hypnogram stack (hypnogram gets full width) */
+  .sleep-row1 { grid-template-columns: 1fr !important; }
+  /* the 3 sleep mini-charts each get their own full-width row */
+  .sleep-row3 { grid-template-columns: 1fr !important; }
+
+  /* Food: the hero collapses to ring-beside-numbers with the in/out rail
+     underneath, and the six meal columns stack in day order — a food name
+     needs more width than a sixth of a 393px screen can give it. */
+  /* Three columns: ring | protein figure | carbs+fat stacked. The wrapper
+     becomes display:contents so its children can be placed on the parent
+     grid directly — same technique the Sleep hero uses on phone. */
+  .food-hero .fh-body {
+    /* Fixed third track rather than auto, so carbs/fat sit inboard of the
+       panel edge instead of hugging it. */
+    grid-template-columns: 116px minmax(0, 1fr) 74px !important;
+    column-gap: 20px; row-gap: 0; align-items: center;
+    padding: 6px 4px 4px;
+  }
+  .fh-ring { width: 116px; height: 116px; grid-column: 1; grid-row: 1 / span 3; }
+  .fh-pct { font-size: 24px; }
+  .fh-main { display: contents; }
+  .fh-protein { grid-column: 2; grid-row: 1; align-self: end; }
+  .fh-sub { grid-column: 2; grid-row: 2; align-self: start; margin-top: 7px; }
+  .fh-big { font-size: 33px; }
+  .fh-macros {
+    grid-column: 3; grid-row: 1 / span 2; align-self: center;
+    flex-direction: column; align-items: flex-start;
+    gap: 12px; margin-top: 0;
+  }
+  .fh-macro .v { font-size: 16px; }
+  /* Spans both text columns so the bar runs the full width beside the ring. */
+  .fh-split-col {
+    grid-column: 2 / -1; grid-row: 3;
+    border-top: 1px solid var(--line); padding-top: 13px; margin-top: 15px;
+  }
+  /* space-between wraps raggedly in a narrow column; an even 3-track grid
+     keeps the three labels on one line, each under its own segment. */
+  .fh-split-legend {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px; font-size: 12px;
+  }
+  .fh-split-legend > span { min-width: 0; gap: 5px; }
+  .fh-split-legend i { flex: 0 0 auto; }
+  .wt-big { font-size: 32px; }
+  .meal-grid { grid-template-columns: 1fr !important; gap: 10px; }
+  .meal-col { min-height: 0; }
+  .mcol-rows { padding: 7px 0; }
+
+  /* "add info" + other modals become a bottom sheet */
+  .modal-overlay { align-items: flex-end; }
+  .modal, .modal.wide, .modal.xwide {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: 92dvh;
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+  }
+  /* drink shortcuts wrap to 2 rows on narrow screens */
+  .drink-row .drink-btn { flex: 1 1 44%; }
+
+  /* Amount panel: grams + buttons alone are already ~320px, so the kcal
+     preview was being ellipsised down to "46.5 g…" on a 393px screen. Give it
+     its own line rather than shrinking the number that justifies the amount. */
+  .fa-row { grid-template-columns: 74px auto 1fr; }
+  .fa-sub { grid-column: 3; text-align: left; }
+  .fa-act { grid-column: 1 / -1; justify-content: flex-end; margin-top: 2px; }
+
+  /* ENERGY·TODAY strip: let the day chart run full width, side to side */
+  #bio-day-strip { padding-left: 2px; padding-right: 2px; }
+  #bio-day-strip .line-svg { height: 165px; }
+
+  /* Biocharge tab: its boxes live inside an inner .grid wrapper — kill the
+     wrapper's side padding so the boxes are as wide as the other tabs' boxes
+     (sleep/vitals panels sit directly in the sub-panel, no inset). */
+  .hsub-panel .grid { padding: 0 !important; }
+
+  /* ===================== PHONE APP LAYER =====================
+     Main + Health rebuilt for one thumb. Everything here is scoped to this
+     media block — the desktop layout is untouched. */
+
+  /* --- bottom nav: 4 equal cells, icon over label. The old flex row's
+     content was 399px inside a 373px bar at 393px wide, so "Workout" was
+     clipped. A grid cannot overflow. --- */
+  .bottom-tabs {
+    left: 10px; right: 10px; max-width: none;
+    transform: none;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px;
+    padding: 6px; border-radius: 20px;
+  }
+  .tab {
+    flex-direction: column; gap: 4px; padding: 8px 2px;
+    font-size: 12px; border-radius: 14px; min-height: 0;
+    justify-content: center;
+  }
+  .tab svg { width: 19px; height: 19px; }
+
+  /* Each tab carries its screen's own hue, so the bar reads as a colour map
+     of the app rather than four identical grey icons. Same six hues used by
+     the per-tab accent system, so nothing new is introduced. */
+  .tab[data-tab="main"]    { --tab-hue: var(--hue-bio); }
+  .tab[data-tab="health"]  { --tab-hue: var(--hue-vitals); }
+  .tab[data-tab="finance"] { --tab-hue: var(--hue-finance); }
+  .tab[data-tab="workout"] { --tab-hue: var(--hue-workout); }
+  .tab[data-tab="auspex"]  { --tab-hue: var(--hue-mental); }
+  .tab svg { stroke: var(--tab-hue); opacity: 0.55; transition: opacity .16s; }
+  .tab.active svg { stroke: var(--tab-hue); opacity: 1; }
+  .tab.active {
+    color: var(--ink);
+    background: color-mix(in oklch, var(--tab-hue) 13%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--tab-hue) 34%, transparent);
+  }
+  /* --- Main hero: ring beside the numbers, not stacked above them --- */
+  .hero-ring-cell { flex-direction: row; align-items: center; gap: 16px; padding: 14px; }
+  .hero-ring-cell .bio-ring { width: 104px; height: 104px; flex: none; }
+  .hero-ring-cell .bio-ring svg { width: 104px; height: 104px; }
+  .hero-ring-cell .bio-ring .num { font-size: 34px; }
+  .bio-state.hero-state { flex: 1; min-width: 0; gap: 10px; }
+
+  .hero-chart-cell { padding: 14px; }
+  .hero-chart-cell .line-svg { min-height: 132px; }
+
+  /* --- vitals rail: compact grid instead of a tall 4-row list --- */
+  .hero-side-cell { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px; }
+  .hero-side-cell .hs-line { display: none; }
+  .hero-side-cell .hs-row {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px;
+    padding: 10px 11px; flex-direction: column; align-items: flex-start; gap: 6px;
+  }
+  /* the two heart-rate rows belong together and span the full width */
+  .hero-side-cell .hs-row:nth-child(1),
+  .hero-side-cell .hs-row:nth-child(2) {
+    grid-column: 1 / -1; background: transparent; border: 0; padding: 0;
+    flex-direction: row; align-items: baseline; justify-content: space-between;
+  }
+  .hero-side-cell .hs-row:nth-child(1) { align-items: center; }
+
+  /* --- Health sub-tabs: segmented control, not a 2x2 block --- */
+  #health-subtabs {
+    display: flex !important; grid-template-columns: none;
+    gap: 3px; background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 12px; padding: 3px; width: 100%;
+  }
+  #health-subtabs .subtab {
+    flex: 1; min-width: 0; padding: 9px 2px; border-radius: 9px;
+    border: 0; font-size: 12px; justify-content: center; min-height: 0;
+  }
+  #health-subtabs .subtab svg { display: none; }
+  #health-subtabs .subtab.active {
+    background: var(--panel-2); color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--line-2);
+  }
+
+  /* --- Sleep: the score card becomes the prototype's hero — ring on the left,
+     the night's facts and stage bar on the right — instead of a tall centred
+     card that pushed the hypnogram below the fold. --- */
+  .sleep-row1 { grid-template-columns: 1fr; }
+  .sleep-row1 > .panel + .panel { border-left: 0; border-top: 1px solid var(--line); }
+  /* grid so the chip sits above the facts in the right column, with the ring
+     spanning both rows on the left — a flex row would strand the chip beside it */
+  .sleep-score-card {
+    display: grid; grid-template-columns: 104px minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto;
+    gap: 8px 16px; align-items: center;
+    min-height: 0; padding: 16px 14px; text-align: left;
+  }
+  .sleep-score-card .score-label { display: none; }
+  .sleep-score-card .score-ring-wrap {
+    grid-column: 1; grid-row: 1 / span 3;
+    width: 104px; height: 104px; margin: 0;
+  }
+  .sleep-score-card .score-num { font-size: 34px; }
+  .sleep-score-card .score-tag { grid-column: 2; grid-row: 1; justify-self: start; margin: 0; }
+  /* display:contents lets the rows sit in the right column while the stage bar
+     and legend span the full card width, as in the mock */
+  .sleep-score-card .ssc-info { display: contents !important; }
+  .ssc-row:nth-of-type(1) { grid-column: 2; grid-row: 2; }
+  .ssc-row:nth-of-type(2) { grid-column: 2; grid-row: 3; }
+  .ssc-bar    { grid-column: 1 / -1; grid-row: 4; margin-top: 6px; }
+  .ssc-legend { grid-column: 1 / -1; grid-row: 5; }
+  .ssc-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .ssc-v {
+    font-family: var(--num); font-variant-numeric: tabular-nums;
+    font-size: 17px; font-weight: 400; letter-spacing: -0.02em; color: var(--ink);
+  }
+  .ssc-v u { text-decoration: none; font-size: 12px; color: var(--ink-3); }
+  .ssc-win { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+  .ssc-bar { display: flex; gap: 2px; height: 9px; }
+  .ssc-bar i { display: block; height: 100%; border-radius: 2px; }
+  .ssc-legend {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    font-family: var(--mono); font-size: 12px; color: var(--ink-3);
+  }
+  .ssc-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .ssc-legend em { width: 6px; height: 6px; border-radius: 2px; font-style: normal; }
+  .ssc-legend b { color: var(--ink-2); font-weight: 400; }
+
+  /* The stage split now lives in the hero, so the metrics strip below it is a
+     second copy of the same four numbers — drop it on phone. */
+  .sleep-metrics-panel { display: none; }
+  .sleep-metrics { grid-template-columns: 1fr 1fr; }
+  .sleep-metric { border-right: 0; border-bottom: 1px solid var(--line); }
+  .comp-strip .sleep-metric.comp { border-right: 0; border-bottom: 1px solid var(--line); }
+
+  /* --- Vitals: heart rate is the only live-right-now number, so it gets its
+     own hero cell; the five overnight metrics sit two across underneath. --- */
+  .vitals-now { grid-template-columns: 1fr 1fr; }
+  .vitals-now .vn:first-child {
+    grid-column: 1 / -1;
+    background: linear-gradient(180deg, color-mix(in oklch, var(--accent) 8%, transparent), transparent 70%);
+    border-bottom: 1px solid var(--line);
+    padding: 16px;
+  }
+  .vitals-now .vn:first-child .vn-k::after {
+    content: " · right now"; color: var(--ink-3);
+  }
+  .vitals-now .vn:first-child .vn-v { font-size: 40px; margin-top: 9px; }
+  .vitals-now .vn:first-child .vn-s { font-size: 12px; margin-top: 7px; }
+  .vitals-now .vn:nth-child(2) { border-left: 0; }
+  .vitals-trend-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .vitals-trend-grid .vital-day-panel.trend { padding: 12px; border-radius: 14px; }
+  .vitals-trend-grid .vital-day-chart { height: 62px; }
+  .vitals-trend-grid .vd-head { flex-direction: column; align-items: flex-start; gap: 3px; }
+  .vitals-trend-grid .vd-head > span:first-child { font-size: 12px; }
+  .vitals-trend-grid .vd-sub { display: none; }
+
+  /* --- Mental: word buttons wrap to 3 across --- */
+  .wordscale { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+  .wordscale .wb { padding: 12px 4px; font-size: 12px; }
+  .mental-grid { grid-template-columns: 1fr; }
+
+  /* --- Finance: segmented sub-tabs, tiles two across --- */
+  .fin-subtabs { padding: 3px; gap: 3px; border-bottom: 0; background: var(--bg-2);
+    border: 1px solid var(--line); border-radius: 12px; }
+  .fin-subtab { flex: 1; padding: 9px 2px; border-radius: 9px; border-bottom: 0;
+    font-size: 12px; text-align: center; }
+  .fin-subtab.active { background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--line-2); }
+  .fin-strip { grid-template-columns: 1fr 1fr; }
+  .fin-card-actions { flex-direction: column; }
+  .fin-card-actions .fin-btn { width: 100%; }
+
+  /* --- Workout: readiness components two across instead of four --- */
+  .comps { grid-template-columns: 1fr 1fr; }
+
+  /* nothing should scroll under the floating bar */
+  body { padding-bottom: 108px; }
+}
+
+/* touch devices: bigger tap targets (independent of width) */
+@media (pointer: coarse) {
+  .tab { min-height: 44px; }
+  .subtab { min-height: 40px; }
+  .modal .close { min-width: 40px; min-height: 40px; }
+}

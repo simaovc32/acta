@@ -1,0 +1,10 @@
+# Most runs are a single stat() and exit (nothing changed), so a short period is cheap.
+[Unit]
+Description=Run Acta ingest every 10 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=10min
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,259 @@
+/* ===== WORKOUT TAB ===== */
+#screen-workout { padding: 16px 18px 24px; }
+.wk-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.wk-daybar { display: flex; gap: 6px; flex: 1; overflow-x: auto; scrollbar-width: none; }
+.wk-daybar::-webkit-scrollbar { display: none; }
+.wk-pill { display: flex; flex-direction: column; align-items: center; gap: 5px;
+  min-width: 44px; flex: none; padding: 8px 6px; border-radius: 8px; cursor: pointer;
+  font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
+  background: var(--panel); border: 1px solid var(--line); color: var(--ink-3);
+  transition: all .15s; }
+.wk-pill.active { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+.wk-pill .wk-dot { width: 6px; height: 6px; border-radius: 50%;
+  background: transparent; border: 1px solid var(--ink-4); }
+.wk-pill.has-done .wk-dot { background: var(--accent); border-color: var(--accent); }
+.wk-headbtn { flex: none; padding: 8px 12px; border-radius: 8px; cursor: pointer;
+  font-family:var(--sans); font-size: 12px; letter-spacing:0.01em;
+  background: var(--panel); border: 1px solid var(--line); color: var(--ink-2); font-weight: 600; }
+.wk-headbtn:hover { border-color: var(--accent); color: var(--ink); }
+
+.wk-cols { display: flex; gap: 14px; align-items: flex-start; }
+.wk-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.wk-side { width: 340px; flex: none; display: flex; flex-direction: column; gap: 14px; }
+
+.wk-num { font-family: var(--num); font-weight: 600; letter-spacing: -0.01em; }
+.wk-mono { font-family: var(--mono); }
+
+.wk-session-title { font-family: var(--num); font-size: 22px; font-weight: 600;
+  letter-spacing: -0.015em; line-height: 1.1; margin-top: 2px; }
+.wk-session-sub { font-family:var(--sans);font-weight:500; font-size: 12px; letter-spacing:0.01em; color: var(--ink-3); margin-top: 6px; }
+
+/* Variant picker — List A/B/C · No-equipment. Hidden on single-variant days. */
+.wk-variants { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.wk-vchip { border: 1px solid var(--line-2); background: var(--panel-2, transparent);
+  color: var(--ink-2); border-radius: 999px; cursor: pointer; padding: 5px 12px;
+  font-family:var(--sans);font-weight:500; font-size: 12px; letter-spacing:0.01em; white-space: nowrap; }
+.wk-vchip:hover { border-color: var(--accent); color: var(--accent); }
+.wk-vchip.on { border-color: var(--accent); color: var(--ink);
+  background: color-mix(in oklab, var(--accent) 16%, transparent); }
+
+/* Cardio day: run plan card + run-review overlay */
+.wk-runtl { display: flex; gap: 2px; height: 26px; border-radius: 5px;
+  overflow: hidden; background: var(--line); }
+.wk-runlist { margin-top: 14px; display: flex; flex-direction: column; gap: 2px; }
+.wk-runrow { display: flex; align-items: center; gap: 10px; padding: 9px 4px;
+  border-top: 1px solid var(--line); }
+.wk-runrow:first-child { border-top: none; }
+.wk-runzone { width: 8px; height: 34px; border-radius: 3px; flex: none; }
+.wk-runname { font-size: 13px; font-weight: 600; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.wk-rundetail { font-family: var(--mono); font-size: 12px; color: var(--ink-3);
+  margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wk-runsecs { font-family: var(--mono); font-size: 12px; color: var(--ink-2);
+  flex: none; }
+.wk-runtiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  margin-top: 14px; }
+@media (max-width: 460px) { .wk-runtiles { grid-template-columns: repeat(2, 1fr); } }
+
+/* Day-type swap: pick a different session for today without editing the
+   weekly template (see workout.js `_override`). */
+.wk-sesshead { display: flex; align-items: center; gap: 8px; }
+.wk-swapbtn { margin-left: auto; border: 1px solid var(--line-2); background: transparent;
+  color: var(--ink-2); border-radius: 7px; cursor: pointer; padding: 4px 9px;
+  font-family:var(--sans);font-weight:500; font-size: 12px; letter-spacing:0.01em; }
+.wk-swapbtn:hover { border-color: var(--accent); color: var(--accent); }
+.wk-swapnote { display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: 10px; padding: 7px 9px; border-radius: 7px;
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 32%, transparent);
+  font-family:var(--sans);font-weight:500; font-size: 12px; letter-spacing:0.01em; color: var(--accent); }
+.wk-swaprevert { border: none; background: transparent; color: var(--ink-2);
+  text-decoration: underline; cursor: pointer; font-family:var(--sans);font-weight:500;
+  font-size: 12px; letter-spacing:0.01em; padding: 0; }
+.wk-swaprevert:hover { color: var(--accent); }
+.wk-swaplist { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.wk-swapopt { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  padding: 8px 10px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--line-2); background: var(--panel-2, transparent); color: var(--ink); }
+.wk-swapopt:hover { border-color: var(--accent); }
+.wk-swapopt.on { border-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 14%, transparent); }
+.wk-swapday { font-family:var(--sans);font-weight:500; font-size: 12px; letter-spacing:0.01em; color: var(--accent); min-width: 30px; }
+.wk-swaptitle { font-size: 12.5px; flex: 1; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.wk-swapn { font-family: var(--mono); font-size: 12px; color: var(--ink-3); flex: none; }
+.wk-timerrow { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.wk-tdot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-4); }
+.wk-tdot.on { background: var(--accent); animation: wkPulse 1.4s ease-in-out infinite; }
+@keyframes wkPulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+.wk-btn { border: none; border-radius: 8px; cursor: pointer; font-family:var(--sans);
+  font-weight: 700; letter-spacing:0.01em; }
+.wk-btn-primary { background: var(--accent); color: #0b0705; }
+.wk-btn-primary:disabled { background: var(--panel-2); color: var(--ink-3); cursor: default; }
+.wk-btn-ghost { background: transparent; border: 1px solid var(--line); color: var(--ink-2); }
+.wk-btn-warn { background: var(--danger); color: #0b0705; }
+
+.wk-statrow { display: flex; gap: 10px; }
+.wk-stat { flex: 1; text-align: center; }
+.wk-stat .k { font-family:var(--sans);font-weight:500; font-size: 12px; letter-spacing:0.01em; color: var(--ink-3); }
+.wk-stat .v { font-family: var(--num); font-size: 18px; font-weight: 600; margin-top: 4px; }
+.wk-stat .s { font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+
+.wk-exhead { display: flex; align-items: center; gap: 9px; padding: 10px 12px;
+  border-bottom: 1px solid var(--line); }
+.wk-mtag { font-family:var(--sans); font-size: 12px; font-weight: 700; letter-spacing:0.01em; color: #0b0705; background: var(--accent); padding: 3px 7px;
+  border-radius: 5px; flex: none; }
+.wk-exsel { flex: 1; min-width: 0; background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 6px; padding: 7px 8px; color: var(--ink); font-family: var(--sans);
+  font-size: 13px; font-weight: 600; cursor: pointer; outline: none; }
+.wk-x { flex: none; background: transparent; border: none; color: var(--ink-3);
+  cursor: pointer; font-size: 13px; padding: 4px; }
+/* reorder: a stacked up/down pair at the left of the exercise header */
+.wk-mv { flex: none; display: flex; flex-direction: column; gap: 2px; }
+.wk-mvbtn { display: grid; place-items: center; width: 22px; height: 17px; padding: 0;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px;
+  color: var(--ink-3); cursor: pointer; }
+.wk-mvbtn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.wk-mvbtn:disabled { opacity: 0.28; cursor: default; }
+/* camera button + exercise-image popup */
+.wk-mediabtn { flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+  color: var(--ink-2); cursor: pointer; }
+.wk-mediabtn:hover { border-color: var(--accent); color: var(--accent); }
+.wk-mediabtn.none { opacity: 0.4; }
+.wk-pop { position: fixed; inset: 0; z-index: 320; display: flex; align-items: center;
+  justify-content: center; padding: 18px; background: rgba(4, 5, 7, 0.72); }
+.wk-pop-card { width: min(360px, 100%); background: var(--panel); border: 1px solid var(--line-2);
+  border-radius: 14px; padding: 12px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55); color: var(--ink); }
+.wk-pop-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+.wk-pop-name { flex: 1; min-width: 0; font-family: var(--num); font-size: 16px; font-weight: 600; line-height: 1.2; }
+.wk-pop-none { display: grid; place-items: center; min-height: 150px; padding: 20px; text-align: center;
+  border: 1px dashed var(--line-2); border-radius: 10px; color: var(--ink-3); font-size: 13px; line-height: 1.5; }
+/* drag handle: mouse-only (touch reorders with the arrows), so hidden unless the
+   primary pointer is a fine one that can hover */
+.wk-grip { display: none; flex: none; align-self: stretch; width: 14px; margin-right: -3px;
+  align-items: center; justify-content: center; color: var(--ink-3); cursor: grab; }
+@media (hover: hover) and (pointer: fine) { .wk-grip { display: flex; } }
+.wk-grip:hover { color: var(--accent); }
+.wk-grip:active { cursor: grabbing; }
+.wk-excard.dragging { opacity: 0.4; }
+/* drop marker: a bar in the gap between cards where the exercise would land */
+.wk-excard.drop-before { box-shadow: 0 -5px 0 0 var(--accent); }
+.wk-excard.drop-after { box-shadow: 0 5px 0 0 var(--accent); }
+.wk-dragghost { position: fixed; top: -100px; left: 0; padding: 9px 14px; white-space: nowrap;
+  background: var(--panel-2); border: 1px solid var(--accent); border-radius: 8px;
+  color: var(--ink); font-family: var(--sans); font-size: 13px; font-weight: 600; }
+.wk-excard { scroll-margin: 88px 0 16px; }
+.wk-excard.moved { animation: wk-moved 0.9s ease-out; }
+@keyframes wk-moved { from { box-shadow: 0 0 0 2px var(--accent); } to { box-shadow: 0 0 0 2px transparent; } }
+.wk-modebtn { flex: none; background: var(--panel-2); border: 1px solid var(--line);
+  color: var(--ink-2); border-radius: 6px; padding: 6px 8px; font-family:var(--sans);
+  font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
+  cursor: pointer; white-space: nowrap; }
+.wk-modebtn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+/* Sets read as compact chips, not full-width form fields: the inputs are only
+   ever 2–3 characters, so 1fr columns left them looking like empty text boxes. */
+.wk-setgrid { display: grid; grid-template-columns: 18px 92px 92px 48px 40px 16px; gap: 7px;
+  justify-content: start;
+  align-items: center; }
+.wk-setgrid.head { padding: 8px 12px 4px; font-family:var(--sans);font-weight:500; font-size: 12px;
+  letter-spacing:0.01em; color: var(--ink-3); }
+.wk-setrow { padding: 6px 12px; border-top: 1px solid var(--line); }
+.wk-setrow.done { background: var(--accent-soft); }
+.wk-setno { font-family: var(--mono); color: var(--ink-3); font-size: 13px; }
+.wk-in { width: 100%; background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 7px; padding: 8px 4px; color: var(--ink); font-family: var(--mono);
+  font-size: 13px; font-weight: 600; text-align: center; outline: none;
+  transition: border-color .15s; }
+.wk-in:hover { border-color: var(--line-2); }
+.wk-in:focus { border-color: var(--accent); }
+.wk-rpe { width: 100%; background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px 1px; font-family: var(--mono); font-size: 13px;
+  font-weight: 600; text-align: center; outline: none; cursor: pointer; }
+.wk-done-btn { width: 100%; height: 34px; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;
+  font-family: var(--mono); border: 1px solid var(--ink-4); background: transparent; color: var(--ink-3); }
+.wk-done-btn.on { border-color: transparent; background: var(--accent); color: #0b0705; }
+.wk-addbtn { width: 100%; background: transparent; border: 1px dashed var(--line);
+  color: var(--ink-2); border-radius: 6px; padding: 8px; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family:var(--sans); letter-spacing:0.01em; }
+.wk-spark { flex: none; }
+.wk-weekbars { display: flex; align-items: flex-end; gap: 6px; height: 74px; }
+.wk-weekbars .col { flex: 1; display: flex; flex-direction: column; align-items: center;
+  gap: 6px; height: 100%; justify-content: flex-end; }
+.wk-weekbars .bar { width: 100%; border-radius: 4px 4px 2px 2px; transition: height .3s; }
+.wk-weekbars .lbl { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+
+/* overlays (guided training / history / library) */
+.wk-overlay { position: fixed; inset: 0; z-index: 300; background: var(--bg);
+  display: flex; flex-direction: column; color: var(--ink); }
+.wk-overlay.hidden { display: none; }
+.wk-ov-head { display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--line); flex: none; }
+.wk-ov-body { flex: 1; overflow: auto; }
+.wk-stepper { display: inline-flex; align-items: center; background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.wk-stepper button { width: 42px; height: 50px; background: transparent; border: none;
+  color: var(--ink-2); font-size: 24px; font-weight: 600; cursor: pointer; font-family: var(--sans); }
+.wk-stepper button.plus { color: var(--accent); }
+.wk-stepper input { width: 60px; height: 50px; background: transparent; border: none;
+  border-left: 1px solid var(--line); border-right: 1px solid var(--line); color: var(--ink);
+  font-family: var(--mono); font-size: 20px; font-weight: 600; text-align: center; outline: none; }
+.wk-imgcard { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  overflow: hidden; display: flex; flex-direction: column; }
+.wk-imgcard .thumb { width: 100%; height: 110px; background: var(--panel-2);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  color: var(--ink-3); font-size: 12px; font-family: var(--mono); }
+.wk-imgcard .thumb img,
+.wk-imgcard .thumb video { width: 100%; height: 100%; object-fit: cover; }
+
+.wk-empty { text-align: center; color: var(--ink-3); font-size: 13px; padding: 18px 8px; }
+
+@media (max-width: 700px) {
+  /* align-items:flex-start (set for the desktop two-column layout) makes a
+     COLUMN flex container size children to their content width instead of
+     stretching them — .wk-main was rendering 443px wide inside a 393px screen. */
+  .wk-cols { flex-direction: column; align-items: stretch; }
+  .wk-side { width: 100%; }
+
+  /* ---- phone: run the Workout tab as a full-screen app (no Acta chrome) ---- */
+  body:has(#screen-workout:not(.hidden)) .topbar { display: none; }
+
+  #screen-workout { padding: 0 12px 24px; }
+  /* the workout's own header becomes the app top bar: sticky, full-bleed, notch-safe */
+  #screen-workout .wk-head {
+    position: sticky; top: 0; z-index: 20;
+    margin: 0 -12px 14px; padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+    background: rgba(7,8,10,0.92);
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* full-screen overlays: pad past the notch + gesture bar */
+  .wk-ov-head { padding-top: calc(14px + env(safe-area-inset-top)); }
+  .wk-ov-body { padding-bottom: calc(18px + env(safe-area-inset-bottom)) !important; }
+
+  /* Flex items default to min-width:auto, so .wk-main refused to shrink below
+     its widest child and pushed the page 50px wide at 393px. */
+  .wk-main { min-width: 0; }
+  .wk-cols > * { min-width: 0; }
+
+  /* The desktop set grid uses fixed 92px weight/reps columns (so short inputs
+     read as chips). That floor is too wide here — let them flex instead. */
+  .wk-setgrid {
+    grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1fr) 44px 34px 14px;
+    gap: 6px;
+  }
+  .wk-setrow { padding: 6px 10px; }
+
+  /* exercise header carries 4 controls (tag · name · reps/time · remove).
+     Tighten so they all fit one row on a ~390px phone without squashing the name. */
+  .wk-exhead { gap: 6px; padding: 10px 10px; }
+  .wk-mtag { font-size: 12px; padding: 3px 5px; }
+  .wk-modebtn { padding: 6px 6px; font-size: 12px; letter-spacing: 0; }
+  .wk-exsel { font-size: 12px; padding: 7px 6px; }
+}
+@media (pointer: coarse) {
+  .wk-mvbtn { width: 32px; height: 22px; }
+  .wk-done-btn { min-height: 40px; }
+  .wk-pill { min-height: 44px; }
+}

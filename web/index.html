@@ -1,0 +1,1444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Acta — Personal Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+<!-- PWA / home-screen icon wiring -->
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#07080a" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
+<link rel="apple-touch-icon" href="/icons/icon-192.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Acta" />
+
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/phone.css">
+<link rel="stylesheet" href="css/workout.css">
+<link rel="stylesheet" href="css/auspex.css">
+<link rel="stylesheet" href="css/refinement.css">
+<script src="js/app/chart-scale.js"></script>
+</head>
+<body>
+
+<!-- ============== TOP BAR ============== -->
+<header class="topbar">
+  <div class="brand">
+    <button class="brand-btn" id="about-btn" type="button" title="About Acta">
+      <span class="dot"></span>
+      <span>ACTA</span>
+    </button>
+    <span class="last-update" data-i18n-prefix="last_update">Last update <span id="lastupdate">13:17</span></span>
+    <button class="refresh-btn" id="refresh-btn" title="Refresh data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5A8 8 0 1 0 17.7 17M20 5.5v6h-6"/></svg>
+    </button>
+    <span class="battery-chip" id="topbar-battery" title="Helio strap battery" style="display:none;"></span>
+    <button class="pai-warn-btn" id="pai-warn-btn" type="button" title="Unlogged sessions the strap detected">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+        <path d="M12 9v4"/><path d="M12 17h.01"/>
+        <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>
+      </svg>
+      <span class="n" id="pai-warn-count">0</span>
+    </button>
+    <button class="log-workout-btn" id="log-workout-btn-pc" aria-label="Add info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Log</span></button>
+  </div>
+
+  <div class="topright">
+    <button class="log-workout-btn" id="log-workout-btn" aria-label="Add info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Log</span></button>
+    <span class="avatar">AC</span>
+  </div>
+</header>
+
+<!-- ============== MAIN TAB ============== -->
+<main data-screen-label="Main" id="screen-main">
+
+  <!-- ============ HERO BAND ============
+       Replaces the old ragged three-column grid: ring, today's curve and the
+       vitals rail sit on one full-width band so the flagship metric reads as
+       the flagship instead of a small card in a corner. -->
+  <section class="hero-band">
+
+    <div class="hero-ring-cell">
+      <div class="bio-ring">
+        <svg viewBox="0 0 128 128" width="128" height="128" aria-label="Biocharge">
+          <circle cx="64" cy="64" r="60" fill="none" stroke="var(--line-2)" stroke-width="6"/>
+          <circle class="bio-ring-start" cx="64" cy="64" r="60" fill="none"
+            stroke="var(--accent-2)" stroke-width="6"
+            stroke-dasharray="0 376.99" transform="rotate(-90 64 64)" stroke-linecap="round"/>
+          <circle class="bio-ring-prog" cx="64" cy="64" r="60" fill="none"
+            stroke="var(--accent)" stroke-width="6"
+            stroke-dasharray="0 376.99" transform="rotate(-90 64 64)" stroke-linecap="round"/>
+        </svg>
+        <div class="center"><div>
+          <div class="num">—</div>
+          <div class="pct">of 100</div>
+        </div></div>
+      </div>
+      <div class="bio-state hero-state">
+        <span class="hero-chip" id="main-bio-chip"></span>
+        <div class="row">
+          <span class="swatch" style="background: var(--accent);"></span>
+          <div>
+            <div class="k" data-i18n="now">Now</div>
+            <div class="v">—<span class="small">/ 100</span></div>
+          </div>
+        </div>
+        <div class="row">
+          <span class="swatch" style="background: var(--accent-2);"></span>
+          <div>
+            <div class="k" data-i18n="start_of_day">Start of day</div>
+            <div class="v dim">—<span class="small">/ 100</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-chart-cell">
+      <div class="hero-head">
+        <span class="hero-k" data-i18n="energy_today">Energy · today</span>
+        <span class="hero-k bio-strip-foot">
+          Wake <span class="start"><strong>—</strong></span> · Now <span class="now"><strong>—</strong></span>
+        </span>
+      </div>
+      <svg class="line-svg" id="main-day-line" preserveAspectRatio="none"></svg>
+    </div>
+
+    <div class="hero-side-cell">
+      <div class="hs-row">
+        <span class="hero-k" data-i18n="last_hr">Last HR</span>
+        <span class="hs-chip" id="main-hr-zone">—</span>
+      </div>
+      <div class="hs-row">
+        <span class="hs-val" id="main-hr-val">—<span class="unit">bpm</span></span>
+        <span class="hs-sub" id="main-hr-time">—</span>
+        <span class="hs-age" id="main-hr-age"></span>
+      </div>
+      <div class="hs-line"></div>
+      <div class="hs-row"><span class="hero-k">Resting</span><span class="hs-val sm" id="main-rhr">—</span></div>
+      <div class="hs-line"></div>
+      <div class="hs-row"><span class="hero-k">HRV</span><span class="hs-val sm" id="main-hrv">—</span></div>
+      <div class="hs-line"></div>
+      <div class="hs-row"><span class="hero-k">SpO₂</span><span class="hs-val sm" id="main-spo2">—</span></div>
+    </div>
+
+  </section>
+
+  <div class="grid main-body">
+
+  <!-- LEFT COLUMN -->
+  <section class="col">
+
+
+    <!-- SLEEP -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="label" data-i18n="sleep">Sleep</div>
+        <div class="meta" data-i18n="last_night">Last night</div>
+      </div>
+      <div class="panel-body">
+        <div class="sleep-top">
+          <div>
+            <div class="sleep-label" data-i18n="score">Score</div>
+            <div class="sleep-score">84<span class="of">/ 100</span></div>
+          </div>
+          <div class="sleep-tag" data-i18n="restorative">Restorative</div>
+        </div>
+
+        <div class="sleep-hours">
+          <div>
+            <div class="sleep-label" data-i18n="duration">Duration</div>
+            <div class="duration">7<span class="unit">h</span>42<span class="unit">m</span></div>
+          </div>
+          <div class="sleep-times">
+            <span class="label" data-i18n="in_out">In · Out</span>
+            <span id="sleep-times-val">23:14 <span class="arrow">→</span> 06:56</span>
+          </div>
+        </div>
+
+        <div class="sleep-stages">
+          <div class="sleep-bar">
+            <div class="deep"  style="width: 22%;"></div>
+            <div class="rem"   style="width: 24%;"></div>
+            <div class="light" style="width: 48%;"></div>
+            <div class="awake" style="width: 6%;"></div>
+          </div>
+          <div class="sleep-legend">
+            <div class="item"><span class="swatch" style="background: oklch(0.62 0.16 290);"></span><strong data-i18n="deep">Deep</strong> 1h42</div>
+            <div class="item"><span class="swatch" style="background: oklch(0.58 0.15 255);"></span><strong data-i18n="rem">REM</strong> 1h51</div>
+            <div class="item"><span class="swatch" style="background: oklch(0.78 0.10 215);"></span><strong data-i18n="light">Light</strong> 3h41</div>
+            <div class="item"><span class="swatch" style="background: oklch(0.70 0.14 25);"></span><strong data-i18n="awake">Awake</strong> 28m</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- MIDDLE COLUMN -->
+  <section class="col">
+
+    <!-- TODAY / KEY -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="label"><span data-i18n="today_upper">Today</span> · <span data-i18n="key">Key</span></div>
+        <div class="meta" id="task-count">· 5</div>
+      </div>
+      <div class="panel-body" id="task-list">
+        <!-- tasks injected by JS so checkboxes work -->
+      </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="label" data-i18n="calendar">Calendar</div>
+        <div class="meta" id="cal-date">23 MAY 2026</div>
+      </div>
+      <div class="panel-body">
+        <div class="cal-row">
+          <span data-i18n="today">Today</span>
+          <span><span id="today-events-count">6</span> <span data-i18n="events">events</span></span>
+        </div>
+        <div class="cal-events" id="today-events"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- RIGHT COLUMN -->
+  <section class="col">
+
+    <!-- FINANCE PULSE -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="label" data-i18n="finance_pulse">Finance</div>
+        <div class="meta" id="finance-meta" data-i18n="private">Private</div>
+      </div>
+      <div class="panel-body">
+        <div class="finance-body locked" id="finance-box">
+          <button class="finance-hide" id="finance-hide" type="button" data-i18n="hide">✕ HIDE</button>
+          <div class="finance-content">
+            <div class="net-label" data-i18n="net_worth">Net worth</div>
+            <div class="net-worth">$248,910</div>
+          </div>
+          <div class="finance-reveal">
+            <button type="button" id="finance-reveal-btn">
+              <svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span data-i18n="reveal">Reveal</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASSCODE MODAL -->
+    <div class="modal-overlay" id="passcode-modal">
+      <div class="modal">
+        <button class="close" id="passcode-close" type="button">✕</button>
+        <div class="head">Secure</div>
+        <div class="title">Enter passcode</div>
+        <div class="passcode-input" id="passcode-input">
+          <div class="cell"></div>
+          <div class="cell"></div>
+          <div class="cell"></div>
+          <div class="cell"></div>
+        </div>
+        <div class="passcode-keypad" id="passcode-keypad">
+          <button type="button" data-k="1">1</button>
+          <button type="button" data-k="2">2</button>
+          <button type="button" data-k="3">3</button>
+          <button type="button" data-k="4">4</button>
+          <button type="button" data-k="5">5</button>
+          <button type="button" data-k="6">6</button>
+          <button type="button" data-k="7">7</button>
+          <button type="button" data-k="8">8</button>
+          <button type="button" data-k="9">9</button>
+          <button type="button" class="alt" data-k="clear">Clear</button>
+          <button type="button" data-k="0">0</button>
+          <button type="button" class="alt" data-k="del">Del</button>
+        </div>
+        <div class="hint" id="passcode-error" style="color:var(--danger,#d03b3b);min-height:12px"></div>
+      </div>
+    </div>
+
+    <!-- WEATHER -->
+    
+
+  </section>
+
+  <div class="panel weather-strip">
+      <div class="panel-head">
+        <div class="label" data-i18n="weather">Weather</div>
+        <div class="meta">Forecast</div>
+      </div>
+      <div class="panel-body">
+
+        <div class="weather-loc">
+          <div>
+            <div class="city wx-city" id="wx-city-0" data-wxloc="0">Lisbon</div>
+            <div class="country">PT</div>
+            <div class="cond" id="wx-cond-0">—</div>
+          </div>
+          <div class="weather-temp">
+            <div id="wx-icon-0">
+              <svg width="28" height="28" viewBox="0 0 28 28" style="margin: 0 0 4px auto; display:block;">
+                <circle cx="14" cy="14" r="5" fill="none" stroke="oklch(0.78 0.12 80)" stroke-width="1.5"/>
+                <g stroke="oklch(0.78 0.12 80)" stroke-width="1.5" stroke-linecap="round">
+                  <line x1="14" y1="3" x2="14" y2="6"/><line x1="14" y1="22" x2="14" y2="25"/>
+                  <line x1="3" y1="14" x2="6" y2="14"/><line x1="22" y1="14" x2="25" y2="14"/>
+                  <line x1="6" y1="6" x2="8" y2="8"/><line x1="20" y1="20" x2="22" y2="22"/>
+                  <line x1="6" y1="22" x2="8" y2="20"/><line x1="20" y1="8" x2="22" y2="6"/>
+                </g>
+              </svg>
+            </div>
+            <div class="deg" id="wx-deg-0">—<span class="unit">°C</span></div>
+            <div class="range" id="wx-range-0">—</div>
+          </div>
+        </div>
+
+        <div class="weather-loc">
+          <div>
+            <div class="city wx-city" id="wx-city-1" data-wxloc="1">Porto</div>
+            <div class="country">PT</div>
+            <div class="cond" id="wx-cond-1">—</div>
+          </div>
+          <div class="weather-temp">
+            <div id="wx-icon-1">
+              <svg width="32" height="28" viewBox="0 0 32 28" style="margin: 0 0 4px auto; display:block;">
+                <circle cx="9" cy="10" r="4" fill="none" stroke="oklch(0.78 0.10 80)" stroke-width="1.4"/>
+                <g stroke="oklch(0.78 0.10 80)" stroke-width="1.4" stroke-linecap="round">
+                  <line x1="9" y1="3" x2="9" y2="4.5"/><line x1="3" y1="10" x2="4.5" y2="10"/>
+                  <line x1="4" y1="5" x2="5.2" y2="6.2"/>
+                </g>
+                <path d="M12 19 Q12 14 17 14 Q19 11 23 12 Q28 12 28 17 Q30 17 30 20 Q30 23 27 23 L13 23 Q10 23 10 21 Q10 19 12 19 Z"
+                      fill="none" stroke="var(--ink-2)" stroke-width="1.4" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="deg" id="wx-deg-1">—<span class="unit">°C</span></div>
+            <div class="range" id="wx-range-1">—</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+</div><!-- /.grid.main-body -->
+
+</main>
+
+<!-- ============== WEATHER FORECAST MODAL ============== -->
+<div class="modal-overlay" id="pai-modal">
+  <div class="modal" style="width:420px;max-width:calc(100vw - 24px);padding:24px 22px 20px;">
+    <button class="close" id="pai-close" type="button">✕</button>
+    <div class="head">— SESSIONS DETECTED —</div>
+    <div class="title" style="font-size:17px;margin-bottom:6px;">Unlogged activity</div>
+    <div class="about-version" style="margin-bottom:14px;" id="pai-blurb">
+      The strap recorded these but nothing was logged. Pick the type to add them.
+    </div>
+    <div class="pai-tabs">
+      <button class="pai-tab active" data-paitab="pending">Pending <span class="c" id="pai-n-pending">0</span></button>
+      <button class="pai-tab" data-paitab="confirmed">Added <span class="c" id="pai-n-confirmed">0</span></button>
+      <button class="pai-tab" data-paitab="dismissed">Dismissed <span class="c" id="pai-n-dismissed">0</span></button>
+    </div>
+    <div class="pai-list" id="pai-list"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="about-modal">
+  <div class="modal" style="width:320px;padding:26px 26px 22px;">
+    <button class="close" id="about-close" type="button">✕</button>
+    <div class="head">— ABOUT —</div>
+    <div class="title" style="margin-bottom:2px;">Acta</div>
+    <div class="about-version" id="about-version">—</div>
+    <div id="about-rows">
+      <div class="about-row"><span class="k">Last data change</span><span class="v" id="about-datachange">—</span></div>
+      <div class="about-row"><span class="k">Last sync run</span><span class="v" id="about-ingest">—</span></div>
+      <div class="about-row"><span class="k">History</span><span class="v" id="about-history">—</span></div>
+      <div class="about-row"><span class="k">Database</span><span class="v" id="about-dbsize">—</span></div>
+      <div class="about-row"><span class="k">Strap battery</span><span class="v" id="about-battery">—</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="vo2-help-modal">
+  <div class="modal">
+    <button class="close" id="vo2-help-close" type="button">✕</button>
+    <div class="head">— Reading the VO&#8322; max scale —</div>
+
+    <p class="vo2h-p"><b>VO&#8322; max</b> is the maximum rate your body can take in oxygen,
+      deliver it to your muscles and burn it for energy &mdash; the ceiling on sustained
+      effort. Think of it as <b>engine size</b>: a bigger engine means everything
+      sub-maximal costs you a smaller fraction, so you tire slower, recover faster, and
+      have more headroom before &ldquo;hard&rdquo; becomes &ldquo;can&rsquo;t&rdquo;.</p>
+    <p class="vo2h-p">Acta can&rsquo;t measure it directly (no GPS, no gym-test on the strap),
+      so it&rsquo;s <b>estimated</b> &mdash; a &plusmn;11% trend indicator, not a lab number.</p>
+
+    <div class="vo2h-h">The scale &mdash; men, ml&#183;kg&#8315;&#185;&#183;min&#8315;&#185;</div>
+    <div class="vo2h-scale">
+      <div class="r"><span class="n">~30</span><span class="d">Sedentary. Two flights of stairs leaves you winded. Fitness starts limiting daily life.</span></div>
+      <div class="r"><span class="n">~40</span><span class="d">Average healthy adult. Gentle jog, recreational sport without falling apart.</span></div>
+      <div class="r"><span class="n">~48</span><span class="d">Regular exerciser. Comfortable 10&#8202;k runner, holds their own in pickup games.</span></div>
+      <div class="r"><span class="n">~55</span><span class="d">Seriously fit amateur. Sub-45-min 10&#8202;k, competitive in age-group races.</span></div>
+      <div class="r you"><span class="n">59&ndash;64</span><span class="d"><b>&larr; you.</b> High-level endurance amateur. ~82nd percentile for a 20-year-old man &mdash; fitter than 4 of 5 guys your age.</span></div>
+      <div class="r"><span class="n">70&ndash;85</span><span class="d">Elite. Pro cyclists 75&ndash;85, Tour GC riders 80+, elite marathoners 70&ndash;85. These people do it full-time.</span></div>
+      <div class="r"><span class="n">~90&ndash;96</span><span class="d">Highest ever recorded (cross-country skiers, cyclists). Genetic outliers.</span></div>
+    </div>
+
+    <div class="vo2h-h">Is 59&ndash;64 good?</div>
+    <p class="vo2h-p"><b>Yes.</b> It&rsquo;s the level of someone who&rsquo;s trained hard for
+      years &mdash; the base an ex-athlete keeps even after easing off. Not world-class
+      (that&rsquo;s 75+), but top ~15&ndash;20% for your age. Don&rsquo;t chase the absolute
+      number; watch which way the trend line points.</p>
+
+    <div class="vo2h-h">The two estimates &mdash; Uth &amp; Nes</div>
+    <p class="vo2h-p">Acta runs two independent published formulas and shows the range
+      between them. They measure different things:</p>
+    <div class="vo2h-ests">
+      <div class="vo2h-est">
+        <div class="t">Uth &mdash; the &ldquo;hardware&rdquo; read &nbsp;(~64)</div>
+        <div class="b"><b>15.3 &times; maxHR / restingHR.</b> Pure heart plumbing. A fit heart
+          pumps more blood per beat, so it rests slower and has a wider range to max &mdash;
+          this ratio captures that. Yours: 195&#8202;/&#8202;46. It barely moves day to day and
+          is the more reliable one <b>for you</b>, because it was validated on fit people.
+          This is the cardiovascular system you&rsquo;ve <b>built</b>.</div>
+      </div>
+      <div class="vo2h-est">
+        <div class="t">Nes / HUNT &mdash; the &ldquo;usage&rdquo; read &nbsp;(~59)</div>
+        <div class="b">A regression from 4,637 people who did real treadmill tests. Plugs in
+          your age, resting HR, body size and <b>how much you&rsquo;ve trained the last
+          4 weeks</b>, and returns the VO&#8322; max a typical person with those numbers had.
+          It responds within weeks to changes in training volume. This is what your
+          <b>recent training</b> says you should have.</div>
+      </div>
+    </div>
+    <p class="vo2h-p"><b>How to read the two together:</b><br>
+      &bull; Close together &rarr; confident single estimate.<br>
+      &bull; Uth above Nes (your case) &rarr; you have more base than your recent training is
+      using. Train more and Nes climbs to meet Uth; keep coasting and over months Uth
+      drifts down to meet Nes.<br>
+      &bull; The central number blends them (55% Uth, 45% Nes).</p>
+
+    <div class="vo2h-h">Heart-rate recovery &mdash; a separate thing</div>
+    <p class="vo2h-p">Shown in the expanded card as <b>HR recovery, 1 &amp; 2 min</b>: how many
+      bpm your heart rate has dropped 1 and 2 minutes after a hard session ends (measured
+      from your confirmed runs and games, median of the last 6). It&rsquo;s <b>not</b> part
+      of the VO&#8322; max range &mdash; it measures a different system: how fast your
+      &ldquo;rest&rdquo; nervous system takes back over. A faster drop = better autonomic
+      fitness, an independent predictor of health (Cole 1999).</p>
+    <p class="vo2h-p"><b>Why 1 and 2 minutes, not 5:</b> the first minute is the clean vagal
+      rebound (the most-studied marker); minute 2 is still mostly that. From minute 3 on
+      it&rsquo;s &ldquo;metabolic recovery&rdquo; &mdash; clearing lactate, cooling down
+      &mdash; which depends so much on what you do (walk vs sit, heat, food) that from a
+      wrist strap it&rsquo;s more noise than signal.</p>
+    <p class="vo2h-p">Bands for the 1-min drop after a hard field effort: <b>&lt;15</b>
+      sluggish &middot; <b>15&ndash;24</b> okay &middot; <b>25&ndash;35</b> good &middot;
+      <b>36+</b> athletic. Yours: <b>31 &rarr; 42</b> (1 min &rarr; 2 min).</p>
+    <p class="vo2h-p" style="font-size:12px;color:var(--ink-3)">Why it&rsquo;s not a third
+      VO&#8322; max estimate: the one published formula for that is calibrated on a gentle
+      step test, and run against your all-out sessions it reads ~20 points low. HRR on its
+      own is solid; forced into a VO&#8322; max number it isn&rsquo;t.</p>
+
+    <div class="vo2h-h">The 90-day trend</div>
+    <p class="vo2h-p">Smoothed over 14 days so daily noise doesn&rsquo;t show. Only trust a
+      move that holds <b>3+ weeks</b>. If the line drifts down over a couple of months as
+      your training mix changes, that&rsquo;s the cue to add a hard aerobic
+      session or two a week. Holding or climbing = you&rsquo;re fine.</p>
+
+    <div class="vo2h-h">Why it matters beyond sport</div>
+    <p class="vo2h-p" style="margin-bottom:0;">One of the strongest predictors of lifespan
+      there is &mdash; every ~3.5 higher ≈ 10&ndash;15% lower risk of dying, with no upper
+      limit (Mandsager 2018, 122,000 people). It also declines ~10%/decade if you do
+      nothing; training slows or reverses that.</p>
+  </div>
+</div>
+
+<div class="modal-overlay" id="wx-forecast-modal">
+  <div class="modal" style="width:340px;padding:24px 24px 20px;">
+    <button class="close" id="wx-forecast-close" type="button">✕</button>
+    <div class="head" id="wx-forecast-head">— 7-DAY FORECAST —</div>
+    <div class="title" id="wx-forecast-city" style="text-align:left;margin-bottom:18px;font-size:20px;">City</div>
+    <div id="wx-forecast-rows"></div>
+  </div>
+</div>
+
+<!-- ============== OTHER TABS (placeholders) ============== -->
+<main class="hidden" data-screen-label="Health" id="screen-health" data-accent="biocharge">
+  <div class="health-wrap">
+
+    <div class="health-head">
+      <div class="subtabs" id="health-subtabs">
+        <button class="subtab active" data-hsubtab="biocharge">
+          <svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+          <span data-i18n="h_biocharge">Biocharge</span>
+        </button>
+        <button class="subtab" data-hsubtab="sleep">
+          <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <span data-i18n="h_sleep">Sleep</span>
+        </button>
+        <button class="subtab" data-hsubtab="vitals">
+          <svg viewBox="0 0 24 24"><polyline points="3 12 7 12 9 7 13 17 15 12 21 12"/></svg>
+          <span data-i18n="h_vitals">Vitals</span>
+        </button>
+        <button class="subtab" data-hsubtab="food">
+          <svg viewBox="0 0 24 24"><path d="M6 3v8a2 2 0 0 0 4 0V3"/><path d="M8 11v10"/><path d="M17 3c-1.7 1-2.5 3-2.5 5.5S15.3 13 17 13v8"/></svg>
+          <span data-i18n="h_food">Food</span>
+        </button>
+        <button class="subtab" data-hsubtab="mental">
+          <svg viewBox="0 0 24 24"><path d="M9 21V9c0-2 2-4 5-4s5 2 5 4 1 5 1 7-2 5-5 5h-6z"/><path d="M9 9c-2 0-4 1.5-4 4s2 4 4 4"/><circle cx="13" cy="11" r="1"/></svg>
+          <span data-i18n="h_mental">Mental</span>
+        </button>
+      </div>
+      <div class="daynav" id="health-daynav">
+        <button class="daynav-arrow" id="daynav-prev" type="button" aria-label="Previous day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6"/></svg></button>
+        <button class="daynav-date" id="daynav-date" type="button" aria-haspopup="dialog">
+          <span id="health-date">Sat · 23 may</span>
+        </button>
+        <button class="daynav-arrow" id="daynav-next" type="button" aria-label="Next day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></button>
+        <button class="daynav-today" id="daynav-today" type="button">Today</button>
+
+        <div class="daycal" id="daycal" role="dialog" aria-label="Pick a day">
+          <div class="daycal-head">
+            <button class="daycal-nav" id="daycal-prev" type="button" aria-label="Previous month">‹</button>
+            <span id="daycal-title">August 2026</span>
+            <button class="daycal-nav" id="daycal-next" type="button" aria-label="Next month">›</button>
+          </div>
+          <div class="daycal-dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+          <div class="daycal-grid" id="daycal-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="past-banner" id="past-banner">
+      <span>◷</span><span id="past-banner-text">Viewing a past day · read-only</span>
+    </div>
+
+    <!-- ============ BIOCHARGE SUB-TAB ============ -->
+    <div class="hsub-panel" data-hsub-panel="biocharge">
+      <div class="grid" style="padding: 0; grid-template-columns: 240px minmax(0, 1fr) 300px; gap: 12px; align-items: stretch;">
+
+        <!-- BIOCHARGE RING -->
+        <div class="panel bio-tab-panel">
+          <div class="panel-head">
+            <div class="label" data-i18n="biocharge">Biocharge</div>
+            <div class="meta" data-i18n="live">Live</div>
+          </div>
+          <div class="panel-body">
+            <div class="bio-wrap bio-tab-card" style="border-bottom:0;padding-bottom:0;">
+              <div class="bio-ring">
+                <svg viewBox="0 0 136 136" width="136" height="136">
+                  <circle cx="68" cy="68" r="64" fill="none" stroke="var(--line-2)" stroke-width="8"/>
+                  <circle class="bio-ring-start" cx="68" cy="68" r="64" fill="none"
+                    stroke="oklch(0.42 0.09 165)" stroke-width="8"
+                    stroke-dasharray="0 402.12"
+                    transform="rotate(-90 68 68)"
+                    stroke-linecap="round"/>
+                  <circle class="bio-ring-prog" cx="68" cy="68" r="64" fill="none"
+                    stroke="var(--accent)" stroke-width="8"
+                    stroke-dasharray="0 402.12"
+                    transform="rotate(-90 68 68)"
+                    stroke-linecap="round"/>
+                </svg>
+                <div class="center">
+                  <div>
+                    <div class="num">77</div>
+                    <div class="pct">of 100</div>
+                  </div>
+                </div>
+              </div>
+              <div class="bio-state">
+                <div class="row">
+                  <span class="swatch" style="background: var(--accent);"></span>
+                  <div>
+                    <div class="k" data-i18n="now">Now</div>
+                    <div class="v">77<span class="small">/ 100</span></div>
+                  </div>
+                </div>
+                <div class="row">
+                  <span class="swatch" style="background: oklch(0.42 0.09 165);"></span>
+                  <div>
+                    <div class="k" data-i18n="start_of_day">Start of day</div>
+                    <div class="v dim">95<span class="small">/ 100</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DAY ENERGY -->
+        <div class="panel energy-panel">
+          <div class="panel-head">
+            <div class="label" data-i18n="energy_today">Energy · today</div>
+            <div class="panel-head-action">
+              <span class="meta bio-strip-foot">Wake <span class="start"><strong>—</strong></span> · Now <span class="now"><strong>—</strong></span></span>
+              <button class="icon-btn sm" id="bio-day-expand" type="button" aria-label="Expand the day chart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="bio-strip" id="bio-day-strip">
+              <div class="head">
+                <span class="lbl" data-i18n="day_energy">Day energy</span>
+                <span class="open-hint">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                  <span data-i18n="tap_to_expand">Tap to expand</span>
+                </span>
+              </div>
+              <svg class="line-svg" id="bio-day-line" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
+              <div class="bio-strip-foot">
+                <div class="start"><span data-i18n="wake">Wake</span> · <strong>95</strong></div>
+                <div class="mid">↓</div>
+                <div class="now"><span data-i18n="now">Now</span> · <strong>77</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LAST HR -->
+        <div class="panel snap-panel live-only">
+          <div class="panel-head">
+            <div class="label" data-i18n="snapshot">Snapshot</div>
+            <div class="meta" data-i18n="live">Live</div>
+          </div>
+          <div class="panel-body snap">
+            <div>
+              <div class="k" data-i18n="now">Now</div>
+              <div class="big"><span class="num" id="snap-bio-now">77<span class="unit">/ 100</span></span><span class="chip" id="snap-bio-label"></span></div>
+            </div>
+            <div>
+              <div class="k" data-i18n="last_hr">Last HR</div>
+              <div class="big"><span class="num md" id="snap-hr">—</span><span class="chip" id="snap-hr-zone"></span></div>
+              <div class="snap-time" id="snap-hr-time">—</div>
+            </div>
+            <div class="snap-cells">
+              <div><span class="k">Drain</span><span class="v" id="snap-drain">—</span></div>
+              <div><span class="k">Projected</span><span class="v" id="snap-projected">—</span></div>
+              <div><span class="k">Active</span><span class="v none" id="snap-active">—</span></div>
+            </div>
+            <div class="snap-steps"><span class="k">Steps</span><span class="v" id="snap-steps">—</span></div>
+          </div>
+        </div>
+
+        <!-- BEDTIME RECOMMENDATION -->
+        <div class="panel live-only" style="grid-column: 1 / -1;">
+          <div class="panel-head">
+            <div class="label">Tonight's bedtime</div>
+            <div id="bedtime-model-meta" class="meta">—</div>
+          </div>
+          <div class="panel-body bedtime">
+            <div>
+              <div class="k">Recommended</div>
+              <div class="big" id="bedtime-rec-time">—</div>
+              <div class="fine"><span class="small" id="bedtime-rec-score">Predicted score — · ±5 typical</span><span class="k">Bedtime with the best predicted sleep score</span></div>
+            </div>
+            <svg id="bedtime-curve" viewBox="0 0 600 80" preserveAspectRatio="none" style="width:100%;overflow:visible;"></svg>
+          </div>
+        </div>
+
+        <!-- VO2 MAX SCALE / estimated VO2max (FULL WIDTH) -->
+        <div class="panel fit-panel" id="fitness-panel" style="grid-column: 1 / -1;" hidden>
+          <div class="panel-head">
+            <div class="label">VO&#8322; max scale</div>
+            <button class="icon-btn sm" id="fit-help-btn" type="button"
+                    aria-label="How to read the VO2 max scale"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM12 11v5M12 8h.01"/></svg></button>
+          </div>
+          <div class="panel-body">
+            <div id="fitness-card"></div>
+          </div>
+        </div>
+
+        <!-- BIOCHARGE TREND (FULL WIDTH) -->
+        <div class="panel" style="grid-column: 1 / -1;">
+          <div class="panel-head">
+            <div class="label" data-i18n="biocharge_trend">Trend</div>
+            <div class="panel-head-action">
+              <span class="meta" id="bio-trend-meta">Last 7 days</span>
+              <span class="range-toggle" id="bio-range-toggle">
+                <button data-range="7" class="active">7D</button>
+                <button data-range="15">15D</button>
+              </span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <svg class="bar-chart" id="bio-trend-chart" viewBox="0 0 1000 240" preserveAspectRatio="none" style="height:240px;"></svg>
+            <div class="mini-legend">
+              <span><span class="swatch" style="background:var(--accent);border-radius:2px;"></span>Daily range · max to min</span>
+              <span style="display:flex;gap:18px;margin-left:auto;align-items:center;">
+                <span style="color:var(--ink-3);font-family:var(--mono);font-size:12px;">Maximum <strong id="bio-hover-max" style="color:var(--ink);margin-left:4px;">—</strong></span>
+                <span style="color:var(--ink-3);font-family:var(--mono);font-size:12px;">Minimum <strong id="bio-hover-min" style="color:oklch(0.62 0.10 165);margin-left:4px;">—</strong></span>
+                <span style="color:var(--ink-3);"><span id="bio-trend-avg">7-day avg · 78</span></span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEPS (FULL WIDTH) -->
+        <div class="panel" style="grid-column: 1 / -1;">
+          <div class="panel-head">
+            <div class="label">Steps</div>
+            <div class="panel-head-action"><span class="meta" id="vt-steps-read">—</span></div>
+          </div>
+          <div class="panel-body">
+            <svg class="vital-day-chart" id="vt-steps-chart" preserveAspectRatio="none"></svg>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============ SLEEP SUB-TAB ============ -->
+    <div class="hsub-panel" data-hsub-panel="sleep" style="display:none;">
+
+      <div class="sleep-row1">
+        <!-- SCORE CARD -->
+        <div class="panel">
+          <div class="panel-head">
+            <div class="label" data-i18n="sleep">Sleep</div>
+            <div class="meta" data-i18n="last_night">Last night</div>
+          </div>
+          <div class="panel-body" style="padding:0;">
+            <div class="sleep-score-card">
+              <div class="score-label" data-i18n="score">Score</div>
+              <div class="score-ring-wrap">
+                <svg class="score-ring" viewBox="0 0 140 140" aria-hidden="true">
+                  <circle class="ring-track" cx="70" cy="70" r="60" fill="none" stroke-width="8"/>
+                  <circle class="ring-arc" cx="70" cy="70" r="60" fill="none" stroke-width="8"
+                          stroke-linecap="round" transform="rotate(-90 70 70)"
+                          stroke-dasharray="376.99" stroke-dashoffset="376.99"/>
+                </svg>
+                <div class="score-ring-center">
+                  <div class="score-num">84</div>
+                  <div class="score-of">of 100</div>
+                </div>
+              </div>
+              <div class="score-tag" data-i18n="restorative">Restorative</div>
+              <p class="small ssc-awake" id="sleep-awakenings"></p>
+              <!-- phone-only summary: the prototype's hero puts the night's facts
+                   beside the ring instead of stacking a tall centred card -->
+              <div class="ssc-info" id="ssc-info"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- HYPNOGRAM -->
+        <div class="panel">
+          <div class="panel-head">
+            <div style="display:flex;align-items:center;gap:16px;">
+              <div class="label" data-i18n="sleep_stages">Sleep stages</div>
+              <span id="hypno-stage-info" style="font-family:var(--sans);font-weight:500;font-size:12px;letter-spacing:0.01em;color:var(--ink-3);">Stage: —</span>
+            </div>
+            <div class="meta">23:14 → 06:56</div>
+          </div>
+          <div class="panel-body" style="padding-bottom: 18px;">
+            <svg class="hypnogram" id="hypnogram" viewBox="0 0 800 220" preserveAspectRatio="none"></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- METRICS — strip welded to the band above -->
+      <div class="sleep-metrics-panel">
+        <div class="panel-head">
+          <div class="label" data-i18n="sleep_metrics">Sleep metrics</div>
+          <div class="meta">23 MAY 2026</div>
+        </div>
+        <div class="panel-body" style="padding: 0;">
+          <div class="sleep-metrics">
+            <div class="sleep-metric">
+              <div class="k" data-i18n="duration">Duration</div>
+              <div class="v">7<span class="unit">h</span> 42<span class="unit">m</span></div>
+              <div class="sub up">▲ +18m vs avg</div>
+            </div>
+            <div class="sleep-metric deep">
+              <div class="k"><span class="stage-dot"></span><span data-i18n="deep">Deep</span></div>
+              <div class="v">1<span class="unit">h</span> 42<span class="unit">m</span></div>
+              <div class="sub">22% of total</div>
+            </div>
+            <div class="sleep-metric rem">
+              <div class="k"><span class="stage-dot"></span>REM</div>
+              <div class="v">1<span class="unit">h</span> 51<span class="unit">m</span></div>
+              <div class="sub">24% of total</div>
+            </div>
+            <div class="sleep-metric light">
+              <div class="k"><span class="stage-dot"></span><span data-i18n="light">Light</span></div>
+              <div class="v">3<span class="unit">h</span> 41<span class="unit">m</span></div>
+              <div class="sub">48% of total</div>
+            </div>
+            <div class="sleep-metric awake">
+              <div class="k"><span class="stage-dot"></span><span data-i18n="awake">Awake</span></div>
+              <div class="v">28<span class="unit">m</span></div>
+              <div class="sub down">▼ 6% of total</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCORE COMPONENTS — same strip shape as the stage metrics above,
+           different data: what actually built tonight's score. -->
+      <div class="panel comp-panel" style="margin-bottom:12px;">
+        <div class="panel-head">
+          <div class="label">Score components</div>
+          <div class="meta" id="comp-total">—</div>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <div class="sleep-metrics comp-strip" id="sleep-components"></div>
+        </div>
+      </div>
+
+      <!-- 3 MINI CHARTS -->
+      <div class="sleep-row3">
+        <div class="panel">
+          <div class="panel-head">
+            <div class="label" data-i18n="sleep_time">Sleep time</div>
+            <div class="meta" data-i18n="last_7d">7 DAYS</div>
+          </div>
+          <div class="panel-body">
+            <svg class="mini-chart" id="sleep-time-chart" viewBox="0 0 400 160" preserveAspectRatio="none"></svg>
+            <div class="mini-legend">
+              <span style="color:var(--ink-3);"><span id="sleep-time-lbl">7-day avg</span> · <strong id="sleep-time-avg">7h 28m</strong></span>
+              <span id="sleep-time-mean-label" style="margin-left:auto;color:oklch(0.76 0.14 290);">Mean · —</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div class="label" data-i18n="sleep_regularity">Regularity</div>
+            <div class="meta" data-i18n="last_7d">7 DAYS</div>
+          </div>
+          <div class="panel-body">
+            <svg class="mini-chart" id="sleep-reg-chart" viewBox="0 0 400 160" preserveAspectRatio="none"></svg>
+            <div class="mini-legend">
+              <span><span class="swatch" style="background:var(--hue-sleep);"></span><span data-i18n="bed">Bed</span> <strong id="sleep-reg-bed">—</strong></span>
+              <span><span class="swatch" style="background:var(--hue-mental);"></span><span data-i18n="wake">Wake</span> <strong id="sleep-reg-wake">—</strong></span>
+              <span id="sleep-reg-lbl" style="margin-left:auto;color:var(--ink-3);">Mean</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div class="label" data-i18n="hr_during_sleep">HR during sleep</div>
+            <div class="meta" data-i18n="last_7d">7 DAYS</div>
+          </div>
+          <div class="panel-body">
+            <svg class="mini-chart" id="sleep-hr-chart" viewBox="0 0 400 160" preserveAspectRatio="none"></svg>
+            <div class="mini-legend">
+              <span><span class="swatch" style="background:var(--hue-sleep);"></span>Min <strong><span id="sleep-hr-min">48</span> bpm</strong></span>
+              <span><span class="swatch" style="background:var(--hue-vitals);"></span>Max <strong><span id="sleep-hr-max">68</span> bpm</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============ VITALS SUB-TAB ============ -->
+    <div class="hsub-panel" data-hsub-panel="vitals" style="display:none;">
+
+      <!-- RECOVERY ALERT — full detector (sustained 3-night + acute 2-night
+           nosedive) from /api/readiness. Hidden unless level is soft/hard. -->
+      <div class="recovery-banner live-only" id="vt-recovery-banner"></div>
+
+      <!-- NOW STRIP — current reading for every metric, so none of them is
+           buried below a chart. Filled by applyVitalsNowStrip() from the same
+           snapshot + history the charts already use; no extra request. -->
+      <div class="vitals-now live-only">
+        <div class="vn"><div class="vn-k"><span>Heart rate</span><span class="chip" id="vn-hr-zone"></span></div><div class="vn-v" id="vn-hr">—</div><div class="vn-s" id="vn-hr-sub">—</div></div>
+        <div class="vn"><div class="vn-k">Resting</div><div class="vn-v" id="vn-rhr">—</div><div class="vn-s" id="vn-rhr-sub">—</div></div>
+        <div class="vn"><div class="vn-k">HRV</div><div class="vn-v" id="vn-hrv">—</div><div class="vn-s" id="vn-hrv-sub">—</div></div>
+        <div class="vn"><div class="vn-k">SpO₂</div><div class="vn-v" id="vn-spo2">—</div><div class="vn-s" id="vn-spo2-sub">—</div></div>
+        <div class="vn"><div class="vn-k">Resp. rate</div><div class="vn-v" id="vn-resp">—</div><div class="vn-s" id="vn-resp-sub">—</div></div>
+        <div class="vn"><div class="vn-k">Skin temp</div><div class="vn-v" id="vn-temp">—</div><div class="vn-s" id="vn-temp-sub">—</div></div>
+      </div>
+
+      <div class="vital-day-panel">
+        <div class="vd-head"><span>Heart rate <span class="vd-sub">· today</span></span><span class="vd-read" id="vd-hr-read">—</span></div>
+        <svg class="vital-day-chart" id="vd-hr-chart" preserveAspectRatio="none"></svg>
+      </div>
+
+      <div class="vital-day-panel">
+        <div class="vd-head"><span>Stress <span class="vd-sub">· today</span></span><span class="vd-read" id="vd-stress-read">—</span></div>
+        <svg class="vital-day-chart" id="vd-stress-chart" preserveAspectRatio="none"></svg>
+      </div>
+
+      <div class="vitals-trend-grid">
+
+      <div class="vital-day-panel trend">
+        <div class="vd-head"><span>HRV <span class="vd-sub">· 14 days</span></span><span class="vd-read" id="vt-hrv-read">—</span></div>
+        <svg class="vital-day-chart" id="vt-hrv-chart" preserveAspectRatio="none"></svg>
+      </div>
+
+      <div class="vital-day-panel trend">
+        <div class="vd-head"><span>Resting HR <span class="vd-sub">· 14 days</span> <span id="vt-rhr-warn" style="display:none;color:#ef4444;font-weight:600;"></span></span><span class="vd-read" id="vt-rhr-read">—</span></div>
+        <svg class="vital-day-chart" id="vt-rhr-chart" preserveAspectRatio="none"></svg>
+      </div>
+
+      <div class="vital-day-panel trend">
+        <div class="vd-head"><span>SpO₂ <span class="vd-sub">· 14 days</span></span><span class="vd-read" id="vt-spo2-read">—</span></div>
+        <svg class="vital-day-chart" id="vt-spo2-chart" preserveAspectRatio="none"></svg>
+      </div>
+
+      <div class="vital-day-panel trend">
+        <div class="vd-head"><span>Respiratory rate <span class="vd-sub">· overnight</span></span><span class="vd-read" id="vt-resp-read">—</span></div>
+        <svg class="vital-day-chart" id="vt-resp-chart" preserveAspectRatio="none"></svg>
+      </div>
+
+      <div class="vital-day-panel trend">
+        <div class="vd-head"><span>Skin temp <span class="vd-sub">· overnight</span></span><span class="vd-read" id="vt-temp-read">—</span></div>
+        <svg class="vital-day-chart" id="vt-temp-chart" preserveAspectRatio="none"></svg>
+      </div>
+
+      <!-- CARDIO LOAD (PAI) — the one card here that is not a recovery metric:
+           it answers "have I done enough cardio lately", which nothing else in
+           Acta reports. The dashed baseline is Huami's target of 100, not a
+           personal median, so the reference line reads as a goal. Display only
+           — see /api/pai/load for why this never feeds a score. -->
+      <div class="vital-day-panel trend">
+        <div class="vd-head"><span>Cardio load <span class="vd-sub">· PAI, 7-day rolling</span></span><span class="vd-read" id="vt-pai-read">—</span></div>
+        <svg class="vital-day-chart" id="vt-pai-chart" preserveAspectRatio="none"></svg>
+      </div>
+
+      </div><!-- /.vitals-trend-grid -->
+
+      <div class="vitals-note" id="vitals-note">HR &amp; stress are live per-minute today · HRV / RHR / SpO₂ / respiratory rate / skin-temp are overnight-recovery metrics shown as 14-day trend vs baseline (dashed) · tap or hover any chart to read a point</div>
+    </div>
+
+    <!-- ============ MENTAL STATE SUB-TAB ============ -->
+    <div class="hsub-panel" data-hsub-panel="food" style="display:none;">
+
+      <!-- TODAY — intake at a glance. Protein is the hero: it is the macro that
+           drives training outcomes, and the one a day can actually be short on.
+           Calories in/out come from food_log and daily_energy respectively. -->
+      <div class="panel food-hero">
+        <div class="panel-head"><span id="fd-daylabel">Today</span><span class="meta" id="fd-date">—</span></div>
+        <div class="fh-body">
+          <div class="fh-ring">
+            <svg viewBox="0 0 120 120" id="fd-ring">
+              <circle class="fh-track" cx="60" cy="60" r="52"/>
+              <circle class="fh-arc" cx="60" cy="60" r="52" id="fd-arc"/>
+            </svg>
+            <div class="fh-ring-mid">
+              <div class="fh-pct" id="fd-pct">—</div>
+              <div class="fh-pct-k">protein</div>
+            </div>
+          </div>
+          <div class="fh-main">
+            <div class="fh-protein">
+              <span class="fh-big" id="fd-protein">—</span>
+              <span class="fh-target" id="fd-target">/ — g</span>
+            </div>
+            <div class="fh-sub" id="fd-remaining">—</div>
+            <div class="fh-macros">
+              <div class="fh-macro"><div class="k">Carbs</div><div class="v" id="fd-carbs">—</div></div>
+              <div class="fh-macro"><div class="k">Fat</div><div class="v" id="fd-fat">—</div></div>
+            </div>
+          </div>
+          <!-- Where today's calories actually came from. Descriptive only —
+               no targets on carbs and fat, deliberately. Reuses the stacked-bar
+               idiom already established by .cal-split in this same tab. -->
+          <div class="fh-split-col">
+            <div class="fh-split-head">
+              <span>Macro split</span><span class="fh-note">Estimates</span>
+            </div>
+            <div class="fh-split" id="fd-split">
+              <i class="p" id="fd-sp" style="width:0%"></i>
+              <i class="c" id="fd-sc" style="width:0%"></i>
+              <i class="f" id="fd-sf" style="width:0%"></i>
+            </div>
+            <div class="fh-split-legend">
+              <span><i class="p"></i><span id="fd-lp">Protein —</span></span>
+              <span><i class="c"></i><span id="fd-lc">Carbs —</span></span>
+              <span><i class="f"></i><span id="fd-lf">Fat —</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MEALS — 6 slots (5 real meals + off_hours), always all six, in day
+           order. An empty slot is information, so it stays on screen rather
+           than collapsing.
+           Each meal is a sibling panel on the page background, matching
+           .sleep-row3 / .vitals-trend-grid; nesting them inside one wrapper
+           panel is what made them read as a single welded block. -->
+      <div class="meals-head">
+        <span>Meals</span>
+        <span class="meta">Drag an entry to move it between meals</span>
+      </div>
+      <div class="meal-grid" id="meal-grid"></div>
+
+      <div class="food-bottom">
+
+      <!-- ENERGY OUT — estimated calories burned. Model lives in
+           acta/calories.py; this panel only renders what the API returns. -->
+      <div class="vital-day-panel cal-panel">
+        <div class="vd-head">
+          <span>Energy out <span class="vd-sub" id="cal-daysub">· today</span></span>
+          <span class="vd-read" id="cal-cov">—</span>
+        </div>
+        <div class="cal-body">
+          <div>
+            <div class="cal-hero">
+              <span class="cal-big" id="cal-now">—<span class="unit">kcal</span></span>
+              <span class="cal-warn" id="cal-flag" style="display:none;"></span>
+            </div>
+            <div class="cal-facts">
+              <div class="cal-fact"><div class="k">Projected</div><div class="v accent" id="cal-proj">—</div></div>
+              <div class="cal-fact"><div class="k">7-day avg</div><div class="v" id="cal-avg">—</div></div>
+              <div class="cal-fact"><div class="k">Resting</div><div class="v" id="cal-bmr">—</div></div>
+            </div>
+            <div class="cal-split">
+              <i class="rest" id="cal-bar-rest" style="width:0%"></i>
+              <i class="move" id="cal-bar-move" style="width:0%"></i>
+              <i class="act"  id="cal-bar-act"  style="width:0%"></i>
+            </div>
+            <div class="cal-legend">
+              <span><i class="rest" style="background:color-mix(in oklch,var(--accent) 30%,transparent)"></i><span id="cal-leg-rest">resting —</span></span>
+              <span><i class="move" style="background:color-mix(in oklch,var(--accent) 62%,transparent)"></i><span id="cal-leg-move">movement —</span></span>
+              <span><i class="act" style="background:var(--hue-workout)"></i><span id="cal-leg-act">activities —</span></span>
+            </div>
+            <!-- Per-bout cost. The "activity" figure above is the whole day's
+                 movement; this is what each individual session cost. -->
+            <div class="cal-acts" id="cal-acts"></div>
+          </div>
+          <div>
+            <svg class="cal-chart" id="cal-chart" preserveAspectRatio="none"></svg>
+            <div class="cal-legend"><span id="cal-chart-lab">last 14 days</span></div>
+          </div>
+          <!-- Intake against expenditure. Sits with energy out because that is
+               the number it is being subtracted from. -->
+          <div class="cal-balance">
+            <div class="fh-cell"><div class="k">In</div><div class="v" id="fd-in">—</div></div>
+            <div class="fh-cell"><div class="k">Out</div><div class="v" id="fd-out">—</div></div>
+            <div class="fh-cell"><div class="k">Balance</div><div class="v" id="fd-bal">—</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEIGHT — the one input that stays cheap to give and is the eventual
+           ground truth for calibrating the calorie model (body_config.k).
+           Single weigh-ins swing with water and glycogen, so the 7-day mean is
+           the figure that means anything; it leads. -->
+      <div class="vital-day-panel weight-panel">
+        <div class="vd-head">
+          <span>Weight</span>
+          <button class="meal-add" id="wt-add" title="Log a weight">+</button>
+        </div>
+        <div class="wt-body">
+          <div class="wt-hero">
+            <span class="wt-big" id="wt-avg">—</span><span class="wt-unit">kg</span>
+            <span class="wt-trend" id="wt-trend"></span>
+          </div>
+          <div class="wt-k" id="wt-k">7-day average</div>
+          <svg class="wt-chart" id="wt-chart" preserveAspectRatio="none"></svg>
+          <div class="wt-foot">
+            <span id="wt-latest">—</span>
+            <span id="wt-count">—</span>
+          </div>
+        </div>
+      </div>
+
+      </div>
+    </div>
+
+    <div class="hsub-panel" data-hsub-panel="mental" style="display:none;">
+      <div class="empty-tab">
+        <div class="big">Mental state</div>
+        Mood · stress · journaling · meditation — coming up
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ============== DAY ENERGY MODAL ============== -->
+<div class="modal-overlay" id="day-energy-modal">
+  <div class="modal xwide">
+    <button class="close" id="day-energy-close" type="button">✕</button>
+    <!-- No day arrows here on purpose: the day is chosen once, in the Health
+         header, and every sub-tab (this chart included) follows it. -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+      <div class="head" id="day-energy-head" style="flex:1;margin:0;">Biocharge · Today</div>
+    </div>
+    <div class="title">Energy across the day</div>
+    <div class="day-modal-sub" id="day-modal-sub">—</div>
+    <svg class="day-chart" id="day-energy-chart" viewBox="0 0 800 320"></svg>
+    <div class="day-chart-foot">
+      <div class="col">
+        <div class="k">Wake</div>
+        <div class="v dim" id="day-foot-wake">—</div>
+      </div>
+      <div class="col">
+        <div class="k" id="day-foot-mid-label">Current</div>
+        <div class="v acc" id="day-foot-mid">—</div>
+      </div>
+      <div class="col">
+        <div class="k">Lowest</div>
+        <div class="v" id="day-foot-low">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Productivity screen shell — sub-tabs, calendar, boards and focus all rendered by js/productivity.js -->
+<main class="hidden" data-screen-label="Productivity" id="screen-productivity"></main>
+<!-- Finance screen shell — all content rendered by js/finance.js -->
+<main class="hidden" data-screen-label="Finance" id="screen-finance" data-accent="finance"></main>
+
+<!-- Workout screen shell — all content rendered by js/workout.js -->
+<main class="hidden" data-screen-label="Workout" id="screen-workout" data-accent="workout"></main>
+
+<!-- Auspex screen shell — all content rendered by js/auspex.js -->
+<main class="hidden" data-screen-label="Auspex" id="screen-auspex" data-accent="mental"></main>
+
+<!-- ============== BOTTOM TAB BAR ============== -->
+<nav class="bottom-tabs" id="tabs">
+  <button class="tab active" data-tab="main">
+    <svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg>
+    <span data-i18n="tab_main">Main</span>
+  </button>
+  <button class="tab" data-tab="health">
+    <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-11a4 4 0 0 1 7-2.7A4 4 0 0 1 19 10c0 6.5-7 11-7 11z"/></svg>
+    <span data-i18n="tab_health">Health</span>
+  </button>
+  <button class="tab" data-tab="productivity">
+    <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+    <span data-i18n="tab_productivity">Productivity</span>
+  </button>
+  <button class="tab" data-tab="finance">
+    <svg viewBox="0 0 24 24"><line x1="12" y1="3" x2="12" y2="21"/><path d="M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H7"/></svg>
+    <span data-i18n="tab_finance">Finance</span>
+  </button>
+  <button class="tab" data-tab="workout">
+    <svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11"/></svg>
+    <span data-i18n="tab_workout">Workout</span>
+  </button>
+  <button class="tab" data-tab="auspex">
+    <svg viewBox="0 0 24 24"><path d="M2 12s3.6-6.4 10-6.4S22 12 22 12s-3.6 6.4-10 6.4S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>
+    <span data-i18n="tab_auspex">Auspex</span>
+  </button>
+</nav>
+
+<!-- ============== EVENT MODAL ============== -->
+<div class="modal-overlay" id="event-modal">
+  <div class="modal wide">
+    <button class="close" id="event-close" type="button">✕</button>
+    <div class="head" id="event-modal-head" data-i18n="new_event">— NEW EVENT —</div>
+    <div class="title" id="event-modal-day">Saturday, May 23</div>
+    <div class="event-modal-body">
+      <div class="event-field">
+        <label data-i18n="event_title">Title</label>
+        <input type="text" id="event-title" placeholder="What are you doing?" data-i18n-ph="event_title_ph" />
+      </div>
+      <div class="event-time-row">
+        <div class="event-field">
+          <label data-i18n="event_start">Start</label>
+          <input type="time" id="event-start" value="09:00" />
+        </div>
+        <div class="event-field">
+          <label data-i18n="event_end">End</label>
+          <input type="time" id="event-end" value="10:00" />
+        </div>
+      </div>
+      <div class="event-field">
+        <label data-i18n="event_tag">Category</label>
+        <select id="event-tag"><!-- options filled from /api/schedule/categories --></select>
+      </div>
+      <div class="event-field">
+        <label data-i18n="event_note">Note</label>
+        <input type="text" id="event-note" placeholder="optional" data-i18n-ph="event_note_ph" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="event-delete" class="danger" type="button" style="display:none;" data-i18n="delete">Delete</button>
+      <button id="event-cancel" type="button" data-i18n="cancel">Cancel</button>
+      <button id="event-save" class="primary" type="button" data-i18n="save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== FOCUS OVERLAY ============== -->
+<div class="focus-overlay" id="focus-overlay">
+  <div class="focus-inner">
+    <button class="close" id="focus-close" type="button">✕ EXIT</button>
+    <div class="head" data-i18n="focus_mode">Focus mode</div>
+    <div class="sub" data-i18n="deep_work_session">Deep work session</div>
+    <div class="focus-time" id="focus-time">00:00</div>
+    <div class="focus-elapsed" id="focus-elapsed" data-i18n="ready_when_you_are">Ready when you are</div>
+    <input class="focus-intent" id="focus-intent" type="text" style="display:none;" />
+    <div class="focus-controls">
+      <button class="primary" id="focus-start" type="button" data-i18n="start">Start</button>
+      <button id="focus-reset" type="button" data-i18n="reset">Reset</button>
+    </div>
+    <div class="focus-keyhints">
+      <span><kbd>Space</kbd> <span data-i18n="kh_startpause">start / pause</span></span>
+      <span><kbd>⌃P</kbd> <span data-i18n="kh_park">park a thought</span></span>
+      <span><kbd>Esc</kbd> <span data-i18n="kh_leave">leave (keeps running)</span></span>
+    </div>
+
+    <div class="focus-thought-wrap">
+      <div class="focus-thought-label">
+        <span data-i18n="focus_thought_label">An intrusive thought? Park it here.</span>
+        <span class="focus-thought-meta"><kbd>⌃P</kbd><span class="count" id="focus-thought-count">0</span></span>
+      </div>
+      <div class="focus-thought-row">
+        <input type="text" id="focus-thought-input" placeholder="⌃P — e.g. don't forget to email Maria…" data-i18n-ph="focus_thought_ph" />
+        <button type="button" id="focus-thought-save" data-i18n="park">Park</button>
+      </div>
+      <div class="focus-thought-list" id="focus-thought-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== KANBAN CARD MODAL ============== -->
+<div class="modal-overlay" id="card-modal">
+  <div class="modal wide">
+    <button class="close" id="card-close" type="button">✕</button>
+    <div class="head" id="card-modal-head" data-i18n="card_head">— CARD —</div>
+    <div class="title" id="card-modal-lane">Lane</div>
+    <div class="event-modal-body">
+      <div class="event-field">
+        <label data-i18n="card_title">Title</label>
+        <input type="text" id="card-title" />
+      </div>
+      <div class="event-field">
+        <label data-i18n="card_checklist">CHECKLIST &amp; NOTES</label>
+        <div id="card-checklist"></div>
+        <div class="card-cl-add">
+          <input type="text" id="card-cl-input" placeholder="add a step…" data-i18n-ph="card_step_ph" />
+          <button type="button" id="card-cl-add-btn" class="mini-btn">+</button>
+        </div>
+        <textarea id="card-body" rows="3" placeholder="free notes (optional)…" data-i18n-ph="card_note_ph"></textarea>
+      </div>
+      <div class="event-field">
+        <label data-i18n="card_tags">Tags</label>
+        <input type="text" id="card-tags" placeholder="comma, separated" data-i18n-ph="card_tags_ph" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="card-delete" class="danger" type="button" data-i18n="delete">Delete</button>
+      <button id="card-cancel" type="button" data-i18n="cancel">Cancel</button>
+      <button id="card-save" class="primary" type="button" data-i18n="save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============== FOCUS-SESSION TRIAGE MODAL ============== -->
+<div class="modal-overlay" id="triage-modal">
+  <div class="modal wide">
+    <div class="head" data-i18n="triage_head">— SESSION ENDED —</div>
+    <div class="title" data-i18n="triage_title">Where do these go?</div>
+    <div id="triage-list"></div>
+    <div class="modal-actions">
+      <button id="triage-done" class="primary" type="button" data-i18n="triage_done">Done</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/app/core.js"></script>
+<script src="js/app/health-charts.js"></script>
+<script src="js/app/day-context.js"></script>
+<script src="js/app/live.js"></script>
+
+<!-- Productivity tab is hidden on phones; skip loading its JS there. -->
+<script>
+  if (window.matchMedia('(min-width: 701px)').matches) {
+    var s = document.createElement('script');
+    s.src = 'js/productivity.js?v=r1';
+    document.body.appendChild(s);
+  }
+</script>
+
+<!-- Workout tab logic (loaded on all breakpoints; gym use case). -->
+<script src="js/workout.js?v=15r8"></script>
+
+<!-- Finance tab logic (loaded on all breakpoints). -->
+<script src="js/finance.js?v=4r2"></script>
+<script src="js/finance_spend.js?v=3"></script>
+<script src="js/auspex.js?v=6r1"></script>
+
+<!-- Installable PWA: register the service worker (needs HTTPS or localhost;
+     a no-op on plain HTTP elsewhere). -->
+<script>
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    // Auto-update installed PWAs: when a new service worker takes control,
+    // reload once so the running app swaps to the new shell/JS instead of
+    // resuming stale in-memory code. Guard against first-ever install (no
+    // prior controller) and against reload loops.
+    var hadController = !!navigator.serviceWorker.controller;
+    var swRefreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (swRefreshing || !hadController) return;
+      swRefreshing = true;
+      window.location.reload();
+    });
+    navigator.serviceWorker.register('/sw.js').then(function (reg) {
+      reg.update();  // check for a newer SW on every launch
+    }).catch(function () {});
+  }
+</script>
+
+<!-- ============== WORKOUT LOG MODAL ============== -->
+<div class="info-modal-overlay" id="info-modal-overlay">
+  <div class="info-modal">
+    <div class="info-tabs">
+      <button class="info-tab active" data-tab="food">Food intake</button>
+      <button class="info-tab" data-tab="soreness">Body</button>
+    </div>
+
+    <!-- Tab: Food intake -->
+    <div class="info-tab-panel active" id="tab-food">
+      <!-- When it actually happened, not when it's being typed in. Defaults to
+           now on every open; backdating it (coffee at 15:00, logged at 16:00)
+           re-derives the meal-slot suggestion below and — via food_log.ts and
+           the coffee/alcohol events.json mirror — the BioCharge effect window,
+           so a backdated coffee suppresses drain from 15:00, not from when the
+           entry was typed. -->
+      <label>Logged for</label>
+      <div class="food-time-row">
+        <input type="time" id="food-time" />
+        <span class="ft-hint">defaults to now</span>
+      </div>
+
+      <!-- Applies to everything logged while the sheet is open. Reset to the
+           clock's slot on every open so a stale pick can never misfile a meal.
+           Between meal windows the clock picks "Off hours" — a coffee at 15:00
+           is not lunch food, so it gets its own honest bucket rather than
+           being forced into whichever real meal is nearest. -->
+      <label>Meal</label>
+      <div class="slot-pick" id="slot-pick"></div>
+
+      <label>Drinks</label>
+      <div class="drink-row" id="drink-row"></div>
+
+      <!-- Saved dishes are not listed here — they are reached by typing their
+           name below, so the sheet does not grow with every dish saved. -->
+      <label>Food</label>
+      <div class="food-search-row">
+        <input type="text" id="food-q" placeholder="Search your foods, or describe a new one…" autocomplete="off" />
+      </div>
+      <div class="food-results" id="food-results"></div>
+
+      <!-- Confirm card for a food the library has never seen. Shown after an
+           estimate comes back; every field stays editable before saving. -->
+      <div class="food-new" id="food-new" style="display:none">
+        <div class="fn-head"><span id="fn-title">New food</span><span class="fn-conf" id="fn-conf"></span></div>
+        <div class="fn-grid">
+          <label>Name</label><input type="text" id="fn-name" />
+          <label>kcal /100g</label><input type="number" id="fn-kcal" step="1" min="0" max="900" />
+          <label>Portion (g)</label><input type="number" id="fn-portion" step="1" min="1" max="3000" />
+          <label>Protein /100g</label><input type="number" id="fn-protein" step="0.1" min="0" max="100" />
+          <label id="fn-abv-label" hidden>Alcohol %</label>
+          <input type="number" id="fn-abv" step="0.5" min="0" max="96" hidden />
+        </div>
+        <div class="fn-note" id="fn-note"></div>
+
+        <!-- Unticking this logs a one-off entry straight to today's total
+             without ever writing a food_item row — for a number you don't
+             trust enough to reuse (a weird restaurant portion, a guess). -->
+        <label class="mc-save-as">
+          <input type="checkbox" id="fn-remember" checked />
+          Remember this food in your library
+        </label>
+
+        <label class="mc-save-as" id="fn-pin-row">
+          <input type="checkbox" id="fn-pin" />
+          Pin to the drinks row for one-tap logging
+        </label>
+
+        <!-- Only shown when not remembered: there's no food_item for
+             is_caffeinated_drink()/abv_pct to read, so this one-off log needs
+             its own explicit say on whether it should still raise a
+             coffee/alcohol event (BioCharge drain suppression, sleep penalty). -->
+        <div class="fn-adhoc-flags" id="fn-adhoc-flags" hidden>
+          <label class="mc-save-as">
+            <input type="checkbox" id="fn-caffeine" />
+            ☕ Caffeinated
+          </label>
+          <label class="mc-save-as">
+            <input type="checkbox" id="fn-alcohol" />
+            🍷 Alcoholic
+          </label>
+          <div class="fn-grid" id="fn-adhoc-abv-row" hidden>
+            <label>ABV %</label><input type="number" id="fn-adhoc-abv" step="0.5" min="0" max="96" />
+          </div>
+        </div>
+
+        <div class="fn-actions">
+          <button class="btn-cancel" id="fn-cancel">Cancel</button>
+          <button class="btn-save" id="fn-save">Save</button>
+        </div>
+      </div>
+
+      <!-- Confirm card for a dish that splits into independently-portioned
+           parts. Each row carries its own grams, which is the only number that
+           actually varies from plate to plate. -->
+      <div class="meal-card" id="meal-card" style="display:none">
+        <div class="fn-head">
+          <input class="mc-name" type="text" id="mc-title" placeholder="Meal name" />
+          <span class="fn-conf" id="mc-conf"></span>
+        </div>
+        <div class="mc-rows" id="mc-rows"></div>
+        <button class="mc-add" id="mc-add">+ Add ingredient</button>
+        <div class="fn-note" id="mc-note"></div>
+        <div class="mc-total">
+          <span>Total</span>
+          <span><b id="mc-kcal">0</b> kcal · <span id="mc-protein">0</span> g protein</span>
+        </div>
+        <label class="mc-save-as">
+          <input type="checkbox" id="mc-save-as" />
+          Save as a meal for one-tap logging
+        </label>
+        <div class="fn-actions">
+          <button class="btn-cancel" id="mc-cancel">Cancel</button>
+          <button class="btn-save" id="mc-log">Log meal</button>
+        </div>
+      </div>
+
+      <div class="wt-fields">
+        <label>Weight</label>
+        <label>Waist</label>
+        <div class="weight-row">
+          <input type="number" id="weight-kg" step="0.1" min="25" max="250" placeholder="74.0" />
+          <span class="wr-unit">kg</span>
+        </div>
+        <div class="weight-row">
+          <input type="number" id="waist-cm" step="0.5" min="40" max="200" placeholder="82" />
+          <span class="wr-unit">cm</span>
+        </div>
+      </div>
+      <button class="btn-save" id="weight-save">Save</button>
+      <div class="weight-hint" id="weight-hint"></div>
+
+      <div class="info-modal-actions">
+        <button class="btn-cancel" id="food-close">Close</button>
+      </div>
+      <div class="modal-status" id="food-status"></div>
+    </div>
+
+    <!-- Tab: Pain / Sore -->
+    <div class="info-tab-panel" id="tab-soreness">
+      <div class="sore-kinds" id="sore-kinds" role="group" aria-label="Type of feeling"></div>
+      <div class="sore-legend">
+        <span class="sore-hint">Tap a body part again to set how strong</span>
+        <span class="sore-key"><i class="sk1"></i>A bit</span>
+        <span class="sore-key"><i class="sk2"></i>Moderate</span>
+        <span class="sore-key"><i class="sk3"></i>Very</span>
+      </div>
+      <div class="sore-map" id="sore-map"></div>
+      <div class="sore-selected" id="sore-selected">Nothing flagged</div>
+      <label>Note <span style="opacity:0.4;font-size:12px">(optional)</span></label>
+      <input type="text" id="sore-note" placeholder="…" />
+      <div class="info-modal-actions">
+        <button class="btn-cancel" id="sore-cancel">Cancel</button>
+        <button class="btn-save" id="sore-save">Save</button>
+      </div>
+      <div class="modal-status" id="sore-status"></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/app/info-modal.js"></script>
+
+<script src="js/app/chart-text.js"></script>
+</body>
+</html>
