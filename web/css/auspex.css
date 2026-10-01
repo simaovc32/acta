@@ -7,7 +7,6 @@
 .aux-head { display: flex; align-items: flex-start; justify-content: space-between;
   gap: 14px; margin-bottom: 16px; }
 .aux-title { font-size: 19px; font-weight: 500; color: var(--ink); margin: 0 0 4px; }
-.aux-sub { font-size: 12px; color: var(--ink-3); margin: 0; line-height: 1.5; max-width: 48ch; }
 .aux-headr { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
 .aux-since, .aux-tally { font-size: 12px; color: var(--ink-3); font-family:var(--sans);font-weight:500;
   font-variant-numeric: tabular-nums; letter-spacing:0.01em; white-space: nowrap; }

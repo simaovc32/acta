@@ -30,7 +30,6 @@
   .snap-panel .panel-body {
     flex: 1; display: flex; flex-direction: column; justify-content: space-between;
   }
-  .snap-grid-top { grid-template-columns: 1fr !important; gap: 16px !important; }
 
   /* Energy chart: let the graph fill the (now taller) box, with a little
      breathing room at the bottom, instead of sitting short at the top. */
@@ -88,8 +87,6 @@
     color: var(--accent); margin-left: 0;
   }
   .topright { display: none; }
-  .log-workout-btn .lw-full { display: none; }
-  .log-workout-btn .lw-short { display: inline; }
 
   /* remove TODAY·KEY and CALENDAR cards from the main screen on mobile */
   #screen-main .panel:has(#task-list),

@@ -1051,36 +1051,11 @@
     el.innerHTML = mods.map(m => `${m.kind} · til ${m.until}`).join('<br>');
   }
 
-  // ── Vitals tab: HRV / RHR / SpO2 cards with 14-day sparklines ──
-  function vitalSparkScale(series, baseline) {
-    const W = 240, H = 52, pad = 6;
-    const vals = series.map(p => p.value);
-    let lo = Math.min(...vals, baseline != null ? baseline : Infinity);
-    let hi = Math.max(...vals, baseline != null ? baseline : -Infinity);
-    if (hi === lo) { hi += 1; lo -= 1; }
-    const span = hi - lo;
-    const x = i => pad + (i / (series.length - 1)) * (W - 2 * pad);
-    const y = v => pad + (1 - (v - lo) / span) * (H - 2 * pad);
-    return { W, H, pad, x, y };
-  }
+  // ── Vitals tab ──
   function fmtDayShort(dateStr) {
     const MONU = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const d = new Date(dateStr + 'T00:00:00');
     return `${d.getDate()} ${MONU[d.getMonth()]}`;
-  }
-  function vitalSpark(svgId, series, baseline) {
-    if (!series || series.length < 2) return '';
-    const { W, H, pad, x, y } = vitalSparkScale(series, baseline);
-    const line = series.map((p, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(p.value).toFixed(1)).join(' ');
-    const fill = `${line} L ${x(series.length - 1).toFixed(1)},${H - pad} L ${x(0).toFixed(1)},${H - pad} Z`;
-    let out = `<path d="${fill}" fill="var(--accent)" opacity="0.08"/>`;
-    if (baseline != null) out += `<line x1="${pad}" x2="${W - pad}" y1="${y(baseline).toFixed(1)}" y2="${y(baseline).toFixed(1)}" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 4" opacity="0.55"/>`;
-    out += `<path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-    const lx = x(series.length - 1), ly = y(series[series.length - 1].value);
-    out += `<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4" fill="var(--accent)" stroke="var(--panel)" stroke-width="2"/>`;
-    out += `<line class="vs-guide" x1="0" x2="0" y1="${pad}" y2="${H - pad}" stroke="var(--accent)" stroke-width="1" stroke-dasharray="2 3" opacity="0.6" style="display:none"/>`;
-    out += `<circle class="vs-cursor" r="4" fill="var(--accent)" stroke="var(--panel)" stroke-width="1.5" style="display:none"/>`;
-    return `<svg class="vital-spark" id="${svgId}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${out}</svg>`;
   }
   // Recovery metrics (HRV / RHR / SpO₂ / skin temp) are overnight values, so they render
   // as 14-day trend panels. The readout uses the last plotted point, not the live

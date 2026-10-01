@@ -45,8 +45,8 @@ def init_workout_tables() -> None:
             con.execute("ALTER TABLE workout_session ADD COLUMN notes TEXT")
         if "pain_flags" not in cols:
             con.execute("ALTER TABLE workout_session ADD COLUMN pain_flags TEXT")
-        # Body-map soreness. One row per area per log; the
-        # newest row inside the decay window is what counts as "current".
+        # Body-map soreness. One row per area per log; the newest row since
+        # the last wake-up is what counts as "current" (it resets each day).
         con.execute("""
             CREATE TABLE IF NOT EXISTS muscle_soreness (
                 ts       INTEGER NOT NULL,   -- epoch ms

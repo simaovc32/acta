@@ -269,9 +269,6 @@ SORENESS_MUSCLE = {
 }
 
 
-SORENESS_DECAY_H = 72  # max lookback for an explicit `hours` override / clears
-
-
 # What the feeling is, separate from how strong (severity 1 mild · 2 moderate · 3 severe):
 # ache = muscle soreness, tight = stiff, heavy = tired muscle, sharp = joint / injury pain.
 SORENESS_KINDS = ("ache", "tight", "heavy", "sharp")

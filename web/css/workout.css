@@ -20,8 +20,6 @@
 .wk-cols { display: flex; gap: 14px; align-items: flex-start; }
 .wk-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 .wk-side { width: 340px; flex: none; display: flex; flex-direction: column; gap: 14px; }
-
-.wk-num { font-family: var(--num); font-weight: 600; letter-spacing: -0.01em; }
 .wk-mono { font-family: var(--mono); }
 
 .wk-session-title { font-family: var(--num); font-size: 22px; font-weight: 600;
@@ -93,7 +91,6 @@
 .wk-btn-ghost { background: transparent; border: 1px solid var(--line); color: var(--ink-2); }
 .wk-btn-warn { background: var(--danger); color: #0b0705; }
 
-.wk-statrow { display: flex; gap: 10px; }
 .wk-stat { flex: 1; text-align: center; }
 .wk-stat .k { font-family:var(--sans);font-weight:500; font-size: 12px; letter-spacing:0.01em; color: var(--ink-3); }
 .wk-stat .v { font-family: var(--num); font-size: 18px; font-weight: 600; margin-top: 4px; }
