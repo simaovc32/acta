@@ -9,8 +9,6 @@ state under ./data so a fresh clone runs without any setup; `acta demo` fills
     ACTA_GADGETBRIDGE_DB the Gadgetbridge export to ingest from        ($ACTA_DATA_DIR/Gadgetbridge.db)
     ACTA_EVENTS          the event log (coffee, alcohol, workouts)     ($ACTA_DATA_DIR/events.json)
     ACTA_TZ              home time zone (days fall back to it)         (this machine's zone)
-    ACTA_OBSIDIAN_VAULT  optional Obsidian vault for the read-only Kanban board
-    ACTA_OBSIDIAN_BOARD  that board's file, relative to the vault        (Kanban.md)
     ACTA_HOST / ACTA_PORT  where the API listens                       (127.0.0.1:8000)
 
 API keys (OPENROUTER_API_KEY for food lookups and Auspex narration,
@@ -39,10 +37,6 @@ REPORT_DIR = str(Path(DATA_DIR) / "reports")
 MEDIA_DIR = str(Path(DATA_DIR) / "exercise-videos")
 ENV_FILE = str(Path(DATA_DIR) / ".env")
 WEB_DIR = _path("ACTA_WEB_DIR", ROOT / "web")
-
-_vault = os.environ.get("ACTA_OBSIDIAN_VAULT")
-OBSIDIAN_VAULT = Path(_vault).expanduser() if _vault else None
-OBSIDIAN_BOARD = os.environ.get("ACTA_OBSIDIAN_BOARD", "Kanban.md")
 
 def _local_zone() -> str:
     """The machine's IANA zone name (Linux, macOS and Windows alike). The dashboard

@@ -7,7 +7,7 @@ import tempfile
 
 os.environ["ACTA_DATA_DIR"] = tempfile.mkdtemp(prefix="acta-tests-")
 os.environ["ACTA_TZ"] = "Europe/Lisbon"   # the fixtures' expected clock times are written in it
-for _var in ("ACTA_DB", "ACTA_GADGETBRIDGE_DB", "ACTA_EVENTS", "ACTA_OBSIDIAN_VAULT"):
+for _var in ("ACTA_DB", "ACTA_GADGETBRIDGE_DB", "ACTA_EVENTS"):
     os.environ.pop(_var, None)
 
 import pytest  # noqa: E402

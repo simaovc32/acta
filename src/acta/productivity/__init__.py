@@ -1,1 +1,1 @@
-"""Kanban boards and a read-only Obsidian board reader."""
+"""Kanban boards for the Productivity tab."""

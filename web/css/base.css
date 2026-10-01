@@ -2886,20 +2886,8 @@ kbd {
   font-family:var(--sans);font-weight:500; font-size: 12px; color: var(--ink-3);
   letter-spacing:0.01em;
 }
-.kb-tab .kb-vault {
-  font-family:var(--sans);font-weight:500; font-size: 12px; letter-spacing:0.01em; color: oklch(0.78 0.10 80);
-  border: 1px solid color-mix(in oklch, oklch(0.78 0.10 80) 32%, transparent);
-  border-radius: 3px; padding: 1px 4px;
-}
 .kb-bar-actions { display: flex; gap: 6px; }
 
-.kb-readonly-note {
-  grid-column: 1 / -1;
-  font-family:var(--sans);font-weight:500; font-size: 12px; letter-spacing:0.01em;
-  color: var(--ink-3); background: oklch(0.78 0.10 80 / 0.06);
-  border: 1px dashed color-mix(in oklch, oklch(0.78 0.10 80) 28%, transparent);
-  border-radius: 6px; padding: 8px 12px; margin-bottom: 10px;
-}
 .kb-error-note {
   grid-column: 1 / -1; font-family: var(--mono); font-size: 12px;
   color: var(--danger); border: 1px dashed color-mix(in oklch, var(--danger) 40%, transparent);
@@ -2956,8 +2944,6 @@ kbd {
 }
 .kb-card:hover { border-color: var(--line-2); }
 .kb-card.dragging { opacity: 0.45; }
-.kb-card.ro { cursor: default; }
-.kb-card.ro .kb-card-box { cursor: default; opacity: 0.5; }
 .kb-card-text code { font-family: var(--mono); font-size: 12px; color: var(--accent); background: var(--accent-soft); padding: 0 3px; border-radius: 3px; }
 .kb-card.checked .kb-card-text { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--ink-4); }
 .kb-card-box {

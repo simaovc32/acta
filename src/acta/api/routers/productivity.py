@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from acta.api.deps import open_db, open_db_rw
 from acta.config import TZ
-from acta.productivity import boards, obsidian
+from acta.productivity import boards
 
 router = APIRouter()
 
@@ -69,18 +69,6 @@ class CardPatch(BaseModel):
     position: Optional[int] = None
 
 
-class ImportLane(BaseModel):
-    name: str
-    is_done_lane: Optional[bool] = False
-    cards: list = []
-
-
-class BoardImport(BaseModel):
-    name: str
-    accent: Optional[str] = None
-    lanes: list[ImportLane] = []
-
-
 def _kanban_call(fn, *a, **kw):
     """Run a kanban_store mutation on a rw connection, mapping KanbanError."""
     con = open_db_rw()
@@ -92,75 +80,18 @@ def _kanban_call(fn, *a, **kw):
         con.close()
 
 
-def _obsidian_payload(row) -> dict:
-    """Parse the vault Kanban file into the same shape a native board has.
-    Synthetic string ids — the board is read-only so they are never sent back."""
-    parsed = obsidian.parse_board(row["source_path"] or obsidian.DEFAULT_REL)
-    lanes = []
-    for li, lane in enumerate(parsed.get("lanes", [])):
-        cards = [{
-            "id": f"o{li}-{ci}",
-            "text": c["text"], "body": c.get("body", ""),
-            "tags": [], "checked": c["checked"],
-            "position": ci, "completed_at": None,
-        } for ci, c in enumerate(lane["cards"])]
-        lanes.append({
-            "id": f"o{li}", "name": lane["name"], "position": li,
-            "is_done_lane": False, "collapsed": lane.get("collapsed", False),
-            "cards": cards,
-        })
-    return {
-        "slug": row["slug"], "name": row["name"], "kind": "obsidian",
-        "accent": row["accent"], "read_only": True,
-        "source_path": row["source_path"],
-        "error": parsed.get("error"),
-        "lanes": lanes,
-    }
-
-
 @router.get("/api/kanban/boards")
 def kanban_list_boards():
-    con = open_db()
-    try:
-        obs_row = con.execute(
-            "SELECT * FROM kanban_board WHERE kind='obsidian' AND archived=0 "
-            "ORDER BY position, id LIMIT 1").fetchone()
-    finally:
-        con.close()
-    out = []
-    if obs_row:
-        payload = _obsidian_payload(obs_row)
-        cards = [c for ln in payload["lanes"] for c in ln["cards"]]
-        out.append({
-            "slug": obs_row["slug"], "name": obs_row["name"], "kind": "obsidian",
-            "accent": obs_row["accent"], "position": obs_row["position"],
-            "card_count": len(cards),
-            "open_count": sum(1 for c in cards if not c["checked"]),
-            "read_only": True,
-            "error": payload.get("error"),
-        })
     con = open_db_rw()
     try:
-        out.extend(boards.list_boards(con))
+        return {"boards": boards.list_boards(con)}
     finally:
         con.close()
-    return {"boards": out, "obsidian_slug": obs_row["slug"] if obs_row else None}
 
 
 @router.get("/api/kanban/boards/{slug}")
 def kanban_get_board(slug: str):
-    con = open_db_rw()
-    try:
-        row = con.execute("SELECT * FROM kanban_board WHERE slug=?", (slug,)).fetchone()
-        if not row:
-            raise HTTPException(404, f"board '{slug}' not found")
-        if row["kind"] == "obsidian":
-            return _obsidian_payload(row)
-        return boards.get_board(con, slug)
-    except boards.KanbanError as exc:
-        raise HTTPException(exc.status, str(exc)) from exc
-    finally:
-        con.close()
+    return _kanban_call(boards.get_board, slug)
 
 
 @router.post("/api/kanban/boards")
@@ -212,13 +143,6 @@ def kanban_update_card(card_id: int, p: CardPatch):
 @router.delete("/api/kanban/cards/{card_id}")
 def kanban_delete_card(card_id: int):
     return _kanban_call(boards.delete_card, card_id)
-
-
-@router.post("/api/kanban/import")
-def kanban_import(b: BoardImport):
-    lanes = [{"name": ln.name, "is_done_lane": ln.is_done_lane, "cards": ln.cards}
-             for ln in b.lanes]
-    return _kanban_call(boards.import_cards, b.name, lanes, accent=b.accent)
 
 
 class ScheduleBlockIn(BaseModel):

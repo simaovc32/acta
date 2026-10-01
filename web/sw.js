@@ -5,7 +5,7 @@
 /* Bump the version on every shell change (index.html, css/, js/).
    Any change to the string works — activate deletes every cache that does not
    match, so the installed PWA picks up new code instead of a stale copy. */
-const CACHE = 'acta-dashboard-v3.0';
+const CACHE = 'acta-dashboard-v3.1';
 const SHELL = ['/',
   '/css/base.css', '/css/phone.css', '/css/workout.css', '/css/auspex.css', '/css/refinement.css',
   '/js/app/chart-scale.js', '/js/app/core.js', '/js/app/health-charts.js', '/js/app/day-context.js',

@@ -113,7 +113,7 @@ src/acta/
   tracking/        body, food, activities
   insights/        lag mining, Auspex, experiments, monthly report, small ML models
   finance/         ledger, holdings and price feed, spending, capture API
-  productivity/    Kanban boards, Obsidian reader
+  productivity/    Kanban boards
   api/             FastAPI app, one router per area
   demo/            the synthetic person
 web/               dashboard (index.html, css/, js/)
@@ -156,7 +156,7 @@ Treat the numbers as a way to compare you with yourself over time. The details a
 ## Tests
 
 ```bash
-pytest          # 46 tests, about 440 named checks
+pytest          # 36 tests, about 440 named checks
 ruff check src tests
 ```
 

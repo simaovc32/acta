@@ -1,12 +1,8 @@
 """boards.py — native Kanban boards for the Productivity tab.
 
 API-owned tables, same posture as the workout_* tables: created by the API at
-start, never touched by ingest.py. Two board kinds:
-
-  native   — full CRUD here, lanes + cards live in these tables.
-  obsidian — a registration row only (name / accent / position). Its lanes and
-             cards are parsed live from a vault markdown file by
-             obsidian.py and are read-only. The API layer merges it in.
+start, never touched by ingest.py. Boards, lanes and cards all live in these
+tables, with full CRUD here.
 
 Card ordering is a plain integer `position` per lane, re-packed 0..n-1 on every
 structural change so it never drifts.
@@ -20,10 +16,6 @@ import sqlite3
 from acta import config
 
 TZ = config.TZ
-
-OBSIDIAN_SLUG = "obsidian"
-OBSIDIAN_NAME = "Obsidian"
-OBSIDIAN_PATH = config.OBSIDIAN_BOARD
 
 DEFAULT_LANES = ["Backlog", "This week", "Doing", "Done"]   # last one = done lane
 MAX_BOARDS = 40
@@ -56,7 +48,7 @@ def ensure(con: sqlite3.Connection) -> None:
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             slug        TEXT NOT NULL UNIQUE,
             name        TEXT NOT NULL,
-            kind        TEXT NOT NULL DEFAULT 'native',   -- native | obsidian
+            kind        TEXT NOT NULL DEFAULT 'native',   -- always 'native'; kept for existing DBs
             source_path TEXT,
             accent      TEXT,
             position    INTEGER NOT NULL DEFAULT 0,
@@ -88,15 +80,6 @@ def ensure(con: sqlite3.Connection) -> None:
         )""")
     con.execute("CREATE INDEX IF NOT EXISTS idx_kanban_lane_board ON kanban_lane(board_id)")
     con.execute("CREATE INDEX IF NOT EXISTS idx_kanban_card_lane  ON kanban_card(lane_id)")
-
-    now = _now()
-    if config.OBSIDIAN_VAULT is not None:
-        con.execute(
-            "INSERT OR IGNORE INTO kanban_board"
-            "(slug,name,kind,source_path,accent,position,created_at,updated_at) "
-            "VALUES(?,?,?,?,?,?,?,?)",
-            (OBSIDIAN_SLUG, OBSIDIAN_NAME, "obsidian", OBSIDIAN_PATH, "amber", -1, now, now),
-        )
 
     # seed one native board the first time so the tab isn't empty
     seeded = con.execute(
@@ -138,8 +121,7 @@ def _create_board_row(con, name: str, accent=None, position=0) -> sqlite3.Row:
 
 
 def list_boards(con: sqlite3.Connection) -> list[dict]:
-    """Metadata for every non-archived board (native rows only; the API layer
-    appends the Obsidian board with its live counts)."""
+    """Metadata for every non-archived board."""
     rows = con.execute(
         "SELECT * FROM kanban_board WHERE archived=0 AND kind='native' "
         "ORDER BY position, id"
@@ -154,7 +136,6 @@ def list_boards(con: sqlite3.Connection) -> list[dict]:
             "slug": r["slug"], "name": r["name"], "kind": r["kind"],
             "accent": r["accent"], "position": r["position"],
             "card_count": counts["c"], "open_count": counts["o"],
-            "read_only": False,
         })
     return out
 
@@ -178,7 +159,7 @@ def get_board(con: sqlite3.Connection, slug: str) -> dict:
         })
     return {
         "slug": r["slug"], "name": r["name"], "kind": "native",
-        "accent": r["accent"], "read_only": False, "lanes": lane_out,
+        "accent": r["accent"], "lanes": lane_out,
     }
 
 
@@ -228,8 +209,6 @@ def update_board(con, slug: str, *, name=None, accent=None, position=None,
         sets.append("position=?")
         vals.append(int(position))
     if archived is not None:
-        if r["kind"] == "obsidian":
-            raise KanbanError("the Obsidian board can't be archived", 400)
         sets.append("archived=?")
         vals.append(1 if archived else 0)
     if not sets:
@@ -239,15 +218,11 @@ def update_board(con, slug: str, *, name=None, accent=None, position=None,
     vals.append(r["id"])
     con.execute(f"UPDATE kanban_board SET {', '.join(sets)} WHERE id=?", vals)
     con.commit()
-    if r["kind"] == "obsidian":
-        return {"slug": slug, "status": "ok"}
     return get_board(con, slug)
 
 
 def delete_board(con, slug: str) -> None:
     r = _board_row(con, slug)
-    if r["kind"] == "obsidian":
-        raise KanbanError("the Obsidian board can't be deleted", 400)
     # hard delete: native boards carry no historical record worth keeping
     con.execute("DELETE FROM kanban_card WHERE board_id=?", (r["id"],))
     con.execute("DELETE FROM kanban_lane WHERE board_id=?", (r["id"],))
@@ -450,44 +425,4 @@ def delete_card(con, card_id: int) -> dict:
     _repack(con, c["lane_id"])
     con.commit()
     slug = con.execute("SELECT slug FROM kanban_board WHERE id=?", (c["board_id"],)).fetchone()["slug"]
-    return get_board(con, slug)
-
-
-def import_cards(con, name: str, lanes: list[dict], accent=None) -> dict:
-    """One-shot import used by the frontend to move the old localStorage
-    Eisenhower matrix into a native board. `lanes` = [{name, is_done_lane?,
-    cards:[{text, body?, checked?}]}]."""
-    name = (name or "").strip() or "Imported"
-    maxpos = con.execute(
-        "SELECT COALESCE(MAX(position),-1) m FROM kanban_board WHERE kind='native'"
-    ).fetchone()["m"]
-    base = _slugify(name)
-    slug, n = base, 2
-    while con.execute("SELECT 1 FROM kanban_board WHERE slug=?", (slug,)).fetchone():
-        slug, n = f"{base}-{n}", n + 1
-    now = _now()
-    bid = con.execute(
-        "INSERT INTO kanban_board(slug,name,kind,accent,position,created_at,updated_at) "
-        "VALUES(?,?,'native',?,?,?,?)",
-        (slug, name, accent, maxpos + 1, now, now),
-    ).lastrowid
-    for li, lane in enumerate(lanes or []):
-        done = 1 if lane.get("is_done_lane") else 0
-        lid = con.execute(
-            "INSERT INTO kanban_lane(board_id,name,position,is_done_lane) VALUES(?,?,?,?)",
-            (bid, (lane.get("name") or f"Lane {li+1}")[:80], li, done),
-        ).lastrowid
-        for ci, card in enumerate((lane.get("cards") or [])[:200]):
-            txt = (card.get("text") or "").strip()[:MAX_TEXT]
-            if not txt:
-                continue
-            chk = 1 if card.get("checked") else 0
-            con.execute(
-                "INSERT INTO kanban_card"
-                "(board_id,lane_id,text,body,tags,checked,position,created_at,updated_at,completed_at) "
-                "VALUES(?,?,?,?,'[]',?,?,?,?,?)",
-                (bid, lid, txt, (card.get("body") or "")[:MAX_BODY], chk, ci,
-                 now, now, now if chk else None),
-            )
-    con.commit()
     return get_board(con, slug)

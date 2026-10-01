@@ -9,7 +9,7 @@
 //
 // Data:
 //   /api/schedule/*        weekly-schedule template (recurring, in acta.db)
-//   /api/kanban/*          native boards in acta.db + one read-only Obsidian board
+//   /api/kanban/*          Kanban boards in acta.db
 //   localStorage           park-a-thought + focus-timer-today only (per-device)
 'use strict';
 
@@ -158,7 +158,6 @@
                 <button class="mini-btn solid" id="kb-new-board" type="button">${t('kb_new_board')}</button>
               </div>
             </div>
-            <div id="kb-notes"></div>
             <div class="kanban-board" id="kanban-board"></div>
           </div>
         </div>
@@ -499,23 +498,18 @@
   //  KANBAN BOARDS
   // ========================================================================
   let kbBoards = [];
-  let kbObsidianSlug = null;
   let kbActiveSlug = localStorage.getItem('acta_kb_board') || null;
   let kbBoard = null;
 
   function loadKbBoards() {
     return jget('/api/kanban/boards').then(d => {
       kbBoards = d.boards || [];
-      kbObsidianSlug = d.obsidian_slug;
-      maybeImportMatrix().then(() => {
-        if (!kbBoards.some(b => b.slug === kbActiveSlug)) {
-          const firstNative = kbBoards.find(b => b.kind === 'native');
-          kbActiveSlug = (firstNative || kbBoards[0] || {}).slug || null;
-        }
-        renderKbTabs();
-        if (kbActiveSlug) openKbBoard(kbActiveSlug);
-        else document.getElementById('kanban-board').innerHTML = '';
-      });
+      if (!kbBoards.some(b => b.slug === kbActiveSlug)) {
+        kbActiveSlug = (kbBoards[0] || {}).slug || null;
+      }
+      renderKbTabs();
+      if (kbActiveSlug) openKbBoard(kbActiveSlug);
+      else document.getElementById('kanban-board').innerHTML = '';
     }).catch(() => {
       document.getElementById('kanban-board').innerHTML =
         `<div class="kb-error-note">Couldn't load boards.</div>`;
@@ -528,17 +522,15 @@
     wrap.innerHTML = kbBoards.map(b => `
       <button class="kb-tab${b.slug === kbActiveSlug ? ' active' : ''}" data-slug="${esc(b.slug)}">
         <span>${escText(b.name)}</span>
-        ${b.kind === 'obsidian' ? '<span class="kb-vault">vault</span>' : ''}
         <span class="kb-count">${b.open_count}${b.card_count !== b.open_count ? '/' + b.card_count : ''}</span>
       </button>`).join('');
     wrap.querySelectorAll('.kb-tab').forEach(el =>
       el.addEventListener('click', () => { kbActiveSlug = el.dataset.slug; localStorage.setItem('acta_kb_board', kbActiveSlug); renderKbTabs(); openKbBoard(kbActiveSlug); }));
 
-    const isObs = kbActiveSlug === kbObsidianSlug;
     const rn = document.getElementById('kb-rename-board');
     const dl = document.getElementById('kb-delete-board');
-    if (rn) rn.hidden = isObs || !kbActiveSlug;
-    if (dl) dl.hidden = isObs || !kbActiveSlug;
+    if (rn) rn.hidden = !kbActiveSlug;
+    if (dl) dl.hidden = !kbActiveSlug;
   }
 
   function openKbBoard(slug) {
@@ -560,11 +552,6 @@
   function renderKbBoard() {
     const wrap = document.getElementById('kanban-board');
     if (!wrap || !kbBoard) return;
-    const ro = kbBoard.read_only;
-    const notes = document.getElementById('kb-notes');
-    if (notes) notes.innerHTML =
-      (ro ? `<div class="kb-readonly-note">${t('kb_readonly')}</div>` : '') +
-      (kbBoard.error ? `<div class="kb-error-note">${escText(kbBoard.error)}</div>` : '');
     let html = '';
 
     (kbBoard.lanes || []).forEach(lane => {
@@ -573,7 +560,7 @@
           <span class="kb-lane-name" data-lane="${lane.id}">${escText(lane.name)}</span>
           <span class="kb-lane-meta">
             <span class="kb-lane-count">${lane.cards.length}</span>
-            ${ro ? '' : `<button class="kb-lane-del" data-lane="${lane.id}" title="delete lane">✕</button>`}
+            <button class="kb-lane-del" data-lane="${lane.id}" title="delete lane">✕</button>
           </span>
         </div>
         <div class="kb-cards" data-lane="${lane.id}">`;
@@ -581,7 +568,7 @@
       lane.cards.forEach(c => {
         const cl = checklistStats(c.body);
         const noteMark = (c.body || '').replace(/^[-*]\s*\[[ xX]\].*$/gm, '').trim();
-        html += `<div class="kb-card${c.checked ? ' checked' : ''}${ro ? ' ro' : ''}" data-card="${c.id}" ${ro ? '' : 'draggable="true"'}>
+        html += `<div class="kb-card${c.checked ? ' checked' : ''}" data-card="${c.id}" draggable="true">
           <span class="kb-card-box" data-card="${c.id}"></span>
           <div class="kb-card-main" data-card="${c.id}">
             <div class="kb-card-text">${mdInline(c.text)}</div>
@@ -594,16 +581,15 @@
         </div>`;
       });
       html += `</div>`;
-      if (!ro) html += `<div class="kb-card-add">
+      html += `<div class="kb-card-add">
         <input type="text" data-lane="${lane.id}" placeholder="${esc(t('kb_add_card_ph'))}" />
         <button type="button" data-lane="${lane.id}">+</button>
       </div>`;
       html += `</div>`;
     });
-    if (!ro) html += `<button class="kb-add-lane" type="button">${t('kb_add_lane')}</button>`;
+    html += `<button class="kb-add-lane" type="button">${t('kb_add_lane')}</button>`;
     wrap.innerHTML = html;
 
-    if (ro) { renderKbTabs(); return; }
     wireKbBoard(wrap);
     renderKbTabs();
   }
@@ -745,42 +731,17 @@
     }).catch(err => alert(err.message));
   }
   function kbRenameBoard() {
-    if (!kbBoard || kbBoard.read_only) return;
+    if (!kbBoard) return;
     const name = prompt(t('kb_rename_board_prompt'), kbBoard.name);
     if (!name || !name.trim()) return;
     jsend('/api/kanban/boards/' + kbBoard.slug, 'PATCH', { name: name.trim() }).then(loadKbBoards).catch(err => alert(err.message));
   }
   function kbDeleteBoard() {
-    if (!kbBoard || kbBoard.read_only) return;
+    if (!kbBoard) return;
     if (!confirm(t('kb_delete_board_confirm'))) return;
     jsend('/api/kanban/boards/' + kbBoard.slug, 'DELETE').then(() => {
       kbActiveSlug = null; localStorage.removeItem('acta_kb_board'); loadKbBoards();
     }).catch(err => alert(err.message));
-  }
-
-  // one-time migration of the old localStorage Eisenhower matrix
-  function maybeImportMatrix() {
-    if (localStorage.getItem('acta_matrix_imported')) return Promise.resolve();
-    let raw = localStorage.getItem('acta_matrix_v2');
-    if (!raw) { localStorage.setItem('acta_matrix_imported', '1'); return Promise.resolve(); }
-    let tasks;
-    try { tasks = JSON.parse(raw); } catch (e) { tasks = null; }
-    if (!Array.isArray(tasks) || !tasks.length) { localStorage.setItem('acta_matrix_imported', '1'); return Promise.resolve(); }
-    const Q = { q1: 'Do · now', q2: 'Schedule', q3: 'Delegate', q4: 'Eliminate' };
-    const laneOf = {};
-    Object.keys(Q).forEach(k => laneOf[k] = { name: Q[k], is_done_lane: false, cards: [] });
-    const doneLane = { name: 'Done', is_done_lane: true, cards: [] };
-    tasks.forEach(tk => {
-      const subs = tk.subtasks || [];
-      const body = subs.map(s => `- [${s.done ? 'x' : ' '}] ${s.title}`).join('\n');
-      const card = { text: tk.title || 'Untitled', body, checked: !!tk.done };
-      if (tk.done) doneLane.cards.push(card);
-      else (laneOf[tk.q] || laneOf.q2).cards.push(card);
-    });
-    const lanes = [laneOf.q1, laneOf.q2, laneOf.q3, laneOf.q4, doneLane];
-    return jsend('/api/kanban/import', 'POST', { name: 'Priority Matrix', accent: 'mint', lanes })
-      .then(() => { localStorage.setItem('acta_matrix_imported', '1'); return jget('/api/kanban/boards').then(d => { kbBoards = d.boards || []; kbObsidianSlug = d.obsidian_slug; }); })
-      .catch(() => { /* leave the flag unset so it retries next load */ });
   }
 
   // ---- card modal ----
@@ -816,7 +777,6 @@
     }));
   }
   function openCardModal(card) {
-    if (kbBoard.read_only) return;
     editingCard = card;
     const modal = document.getElementById('card-modal');
     const lane = (kbBoard.lanes || []).find(l => l.cards.some(c => c.id === card.id));
@@ -1200,15 +1160,22 @@
   // ========================================================================
   //  MAIN-SCREEN CARDS  (Today · Key  +  Calendar · Today)
   // ========================================================================
+  // Today · Key shows the open cards of the first board's priority lane.
+  let todayKeySlug = null;
   function renderTodayKey() {
     const list = document.getElementById('task-list');
     const count = document.getElementById('task-count');
     if (!list) return;
-    if (!kbObsidianSlug) {
-      jget('/api/kanban/boards').then(d => { kbObsidianSlug = d.obsidian_slug; renderTodayKey(); }).catch(() => {});
-      return;
-    }
-    jget('/api/kanban/boards/' + encodeURIComponent(kbObsidianSlug)).then(b => {
+    jget('/api/kanban/boards').then(d => {
+      todayKeySlug = ((d.boards || [])[0] || {}).slug || null;
+      if (!todayKeySlug) {
+        if (count) count.textContent = '';
+        list.innerHTML = `<div class="task-empty">${t('today_key_empty')}</div>`;
+        return null;
+      }
+      return jget('/api/kanban/boards/' + encodeURIComponent(todayKeySlug));
+    }).then(b => {
+      if (!b) return;
       const lanes = b.lanes || [];
       const prio = lanes.find(l => /priorit/i.test(l.name)) || lanes[0];
       const open = ((prio && prio.cards) || []).filter(c => !c.checked).slice(0, 5);
@@ -1229,7 +1196,7 @@
   }
   const stripMd = (s) => (s || '').replace(/\*\*/g, '').replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, '$1');
   function gotoBoards() {
-    if (kbObsidianSlug) { kbActiveSlug = kbObsidianSlug; localStorage.setItem('acta_kb_board', kbObsidianSlug); }
+    if (todayKeySlug) { kbActiveSlug = todayKeySlug; localStorage.setItem('acta_kb_board', todayKeySlug); }
     prodSubtab = 'boards';
     const btn = document.querySelector('.bottom-tabs .tab[data-tab="productivity"]');
     if (btn) btn.click();
