@@ -14,9 +14,7 @@ const SHELL = ['/',
   '/manifest.json',
   '/icons/icon-192.png', '/icons/icon-512.png',
   // Self-hosted faces — cached so the installed PWA renders correctly offline.
-  // Both families must be here: a font missing from this list is a font the app
-  // loses with no network, which is exactly what happened to the mono face
-  // while it was still coming from Google Fonts.
+  // Both families must be here: a font missing from this list is lost offline.
   '/fonts/geist-300.woff2', '/fonts/geist-400.woff2', '/fonts/geist-500.woff2', '/fonts/geist-600.woff2',
   '/fonts/jetbrains-mono-latin.woff2', '/fonts/jetbrains-mono-latin-ext.woff2'];
 
@@ -46,12 +44,10 @@ self.addEventListener('fetch', (e) => {
         }
         return resp;
       })
-      // ignoreSearch because index.html requests the scripts with a cache-busting
-      // query (js/workout.js?v=6) while SHELL pre-caches them without one. An
-      // exact match therefore MISSED on a freshly installed PWA that had not yet
-      // completed one online load — the shell was cached but the tabs were not.
-      // Offline, a slightly older cached copy is the right answer; online the
-      // network still wins, since this only runs after fetch() has failed.
+      // ignoreSearch because index.html requests scripts with a cache-busting query
+      // (js/workout.js?v=6) while SHELL pre-caches them without one. Offline, a
+      // slightly older cached copy is right; online the network still wins, since
+      // this only runs after fetch() has failed.
       .catch(() => caches.match(e.request, { ignoreSearch: true }))
   );
 });

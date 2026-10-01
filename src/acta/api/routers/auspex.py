@@ -38,7 +38,7 @@ def auspex_today():
 
 @router.post("/api/auspex/explore")
 def auspex_explore():
-    """Phase 3: the model proposes pairings worth testing, Python tests every one
+    """The model proposes pairings worth testing, Python tests every one
     against the same gates lag_mining uses, and only what survives is narrated.
     Two model calls, so slower and roughly double the cost of a preset question."""
     out = explore.run()

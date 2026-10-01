@@ -22,9 +22,8 @@ const BIO_HISTORY = [];
 // Filled from /api/sleep/recent on load. Intentionally empty.
 const SLEEP_7D = [];
 
-// (The hardcoded HYPNO_STAGES sample night was removed on 2026-08-29: it was
-// rendered whenever a night had no hypnogram, and looked exactly like measured
-// sleep. renderHypnogram() now shows an explicit empty state instead.)
+// A night with no hypnogram gets an explicit empty state in renderHypnogram(),
+// never sample data.
 
 // ----- range toggle -----
 let bioRange = 7;
@@ -314,17 +313,13 @@ function renderHypnogram() {
   const data = liveHypnoStages;
 
   if (!data || !data.length) {
-    // No hypnogram for this night. This used to draw a hardcoded 7-cycle
-    // sample night (462 min, labelled from 23:14) that was indistinguishable
-    // from real data — precisely what renderChartEmpty() exists to prevent:
-    // a health dashboard that invents plausible values is worse than one that
-    // admits the gap. An empty chart is the honest answer.
+    // No hypnogram for this night: show an empty chart rather than invent values.
     renderChartEmpty(svg, W, H, 'No sleep data');
     return;
   }
 
   // Real data: clock-time axis on even hours, rounded stage blocks joined by thin
-  // connectors, hover tooltip (as in the mockup).
+  // connectors, hover tooltip.
   const totalMin = data[data.length - 1].end_min;
   const t0Ms = data[0].start_ts, t1Ms = t0Ms + totalMin * 60000;
   let timeLabels = '';

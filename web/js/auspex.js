@@ -2,11 +2,9 @@
 // Classic script, loaded after the main inline script. Wrapped in an IIFE;
 // exposes only window.auspexOnShow. Owns everything rendered into #screen-auspex.
 //
-// Layout is "Register": the five groups are a segmented control — Acta's own
-// .subtabs/.subtab, same track and active treatment as the Health sub-tabs — and
-// only one group's questions are on screen. You never see eleven at once, the ask
-// block is a fixed height whatever you select, so the feed always begins at the
-// same place, and desktop and phone are one layout rather than two.
+// The five groups are a segmented control (the shared .subtabs/.subtab), so only
+// one group's questions are on screen; the ask block has a fixed height, so the
+// feed always begins at the same place, on desktop and phone alike.
 //
 // There is no free-text box on purpose. Each preset is bound server-side to a
 // builder that assembles exactly the facts that question needs, and every
@@ -132,9 +130,8 @@
       + '<div class="aux-card-body">'
       // The lead is already the emphasis, so **bold** inside it is stripped
       // rather than doubled up. Numbers are still typeset.
-      // A first sentence can itself run long (measured: up to 315 chars on real
-      // answers). It is still the verdict, so it stays promoted rather than
-      // being cut mid-thought -- it just stops being set at display size.
+      // A long first sentence is still the verdict, so it stays promoted rather than
+      // being cut -- it just stops being set at display size.
       + '<p class="aux-lead' + (s.lead.length > 220 ? ' aux-lead-long' : '') + '">'
       + typeset(esc(s.lead.replace(/\*\*/g, ''))) + '</p>'
       + (s.rest.trim() ? '<div class="aux-prose">' + prose(s.rest) + '</div>' : '')

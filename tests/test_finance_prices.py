@@ -115,8 +115,7 @@ def test_price_feed(monkeypatch):
         check("Yahoo is not called when CoinGecko answers",
               not any("yahoo" in u for u in stub.calls), str(stub.calls))
 
-        # This is the bug the first live run found: the fallback was handed
-        # "BTC-EUR", which is not a CoinGecko id, so crypto could not fall back.
+        # The fallback must get the bare coin, not "BTC-EUR" (not a CoinGecko id).
         stub = install(Stub({"BTC-EUR": yahoo_payload("BTC-EUR", 56413.11, "EUR")}))
         q = P.quote_eur("BTC-EUR", "BTC", kind="crypto")
         check("crypto falls back to Yahoo using the feed symbol",
@@ -234,8 +233,7 @@ def test_price_feed(monkeypatch):
         check("dry run does not move net worth", net_worth(con) == nw_now)
 
         # ── FX prefers a market rate over the ECB reference ──────────────────
-        # Measured against the broker, the ECB reference rate put every USD
-        # position ~0.75% high. Market rate first, reference as fallback.
+        # Market rate first, ECB reference as fallback.
         stub = install(Stub({"AAPL": yahoo_payload("AAPL", 100.0, "USD"),
                              "USDEUR": yahoo_payload("USDEUR=X", 0.8605, "EUR"),
                              "frankfurter": {"rates": {"EUR": 0.86693}}}))

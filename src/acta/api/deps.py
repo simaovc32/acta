@@ -19,12 +19,9 @@ def open_db() -> sqlite3.Connection:
 
 
 def open_db_rw() -> sqlite3.Connection:
-    # timeout=30 (vs sqlite3's 5s default): acta-ingest.timer fires every
-    # ~5min and briefly holds a write lock; the default was short enough that
-    # an API write landing in that window failed outright with "database is
-    # locked" instead of just waiting it out (confirmed live, 2026-09-16).
-    # Paired with WAL mode (set once on the DB file itself, not per-
-    # connection) which shortens how long that lock window actually is.
+    # timeout=30 (vs sqlite3's 5s default): acta-ingest.timer briefly holds a write
+    # lock every ~5 min, so an API write waits instead of failing with "database is
+    # locked". Paired with WAL mode (set once on the DB file), which shortens that window.
     con = sqlite3.connect(config.ACTA_DB, timeout=30)
     con.row_factory = sqlite3.Row
     return con
@@ -49,10 +46,8 @@ def last_updated(con: sqlite3.Connection) -> Optional[str]:
     return dt.strftime("%H:%M")
 
 
-# One timeout for every ingest call site. They had drifted to 60s / 120s / 180s
-# for no reason, and the shortest of them (/api/refresh) sat on the one path a
-# human actually waits on — so a genuine run, which replays biocharge and then
-# recomputes calories and PAI, was the case most likely to blow its own budget.
+# One timeout for every ingest call site, sized for a full run (biocharge replay
+# plus calories and PAI), including /api/refresh where a person is waiting.
 INGEST_TIMEOUT_S = 180
 
 

@@ -1,10 +1,11 @@
 """
-BioCharge -- §4 stage-weighted recharge + §5 drain + §6 modifiers + §9 labels.
-Batch-recompute wrapper (§3): auto-detects date range, runs all days in sequence,
+BioCharge actions -- @1 stage-weighted recharge + @2 drain + @3 modifiers + @4 labels.
+Batch-recompute wrapper (@5): auto-detects date range, runs all days in sequence,
 writes biocharge_output.json. Re-running with the same DB produces the same file.
 
 Stage mapping: corrected from working sleep_score.py code
   5=deep  4=light  8=REM  7=awake   (do NOT re-derive from any spec text)
+This mapping is how it works for GadgetBridge. If you use another device, it might be different
 """
 
 import datetime
@@ -17,34 +18,24 @@ from acta.engine.sleep_score import TZ
 COLD_START = 40.0   # midnight level for the very first day (no prior carry-forward)
 
 FLOOR, CAP  = 5, 100
-AWAKE_CODE  = 7   # corrected stage mapping -- do not change
+AWAKE_CODE  = 7   # awake stage code (see mapping above)
 
-# -- §4 recharge coefficients --------------------------------------------------
+# -- @1 recharge coefficients --------------------------------------------------
 STAGE_WEIGHTS  = {5: 2.0, 8: 1.5, 4: 1.0, 7: 0.0}   # deep, REM, light, awake
 SEED_MIN       = 15.0   # score=0   -> morning target
 SEED_MAX       = 95.0   # score=100 -> morning target
 
 # -- Naps (strap-detected daytime sleep) --------------------------------------
-# A nap the strap marks RAW_KIND=NAP_KIND in the awake window. It never writes a
-# hypnogram for one -- verified 2026-08-29 across 283 sessions, and the test nap
-# that day confirmed it (SLEEP/DEEP_SLEEP/REM_SLEEP stay sentinel). So there is
-# no stage breakdown to weight the recharge by: detect_naps() still LOOKS for an
-# overlapping hypnogram and uses real stage weights when one exists, but the
-# honest normal case is stage_source="unknown", and then every nap minute
-# recharges at NAP_RECHARGE_RATE -- the median per-minute recharge across ALL
-# night-sleep minutes over the trailing 45 nights (measured 2026-08-29), i.e. a
-# nap minute is treated as an average sleep minute, not assumed to be light.
-# When a hypnogram IS found the same average is redistributed by real stage
-# weight (NAP_STAGE_REF_WEIGHT = measured night STAGE_WEIGHTS-sum per asleep
-# minute), so a deep minute recharges ~2x a light one around that mean.
+# The strap marks a nap with RAW_KIND=NAP_KIND but never writes a hypnogram for
+# it, so each nap minute recharges at NAP_RECHARGE_RATE (the median per-minute
+# night recharge, i.e. an average sleep minute). If a hypnogram does overlap,
+# that rate is redistributed by real stage weight via NAP_STAGE_REF_WEIGHT.
 NAP_KIND              = 120     # RAW_KIND marker for strap-detected sleep
 NAP_RECHARGE_RATE     = 0.145   # pts/min, flat, when stages are unknown
 NAP_STAGE_REF_WEIGHT  = 1.31    # night weight-sum / asleep-min (measured)
 NAP_MIN_BLOCK_MIN     = 20      # shorter than this is lying still, not a nap
 NAP_MAX_GAP_MIN       = 5       # bridge a turn-over inside the block
-NAP_MIN_START_LAG_MIN = 150     # exact complement of ingest.EXT_MAX_START_LAG_MIN:
-                                # extend_sleep_from_activity owns everything up to
-                                # 150 min past wake and calls anything later a nap
+NAP_MIN_START_LAG_MIN = 150     # complement of EXT_MAX_START_LAG_MIN: later than this is a nap
 NAP_MAX_MINUTES       = 120     # counted-minute cap per nap
 NAP_MAX_RECHARGE      = 18.0    # pts cap per nap (backstop for all-day sleep)
 NAP_LATEST_END_MIN    = 22 * 60 # a block ending after 22:00 is bedtime, not a nap
@@ -52,27 +43,18 @@ NAP_LATEST_END_MIN    = 22 * 60 # a block ending after 22:00 is bedtime, not a n
 NAP_DETECT_START      = "2026-08-29"
 
 # -- Extend-sleep credit (return-to-sleep after the hypnogram ends) ------------
-# The hypnogram ends when you first get up, but the strap never restarts one if
-# you fall back asleep -- ingest.extend_sleep_from_activity() recovers that for
-# sleep_score from the same RAW_KIND=NAP_KIND signal naps use, but BioCharge
-# never saw it: compute_day() derived waketime straight from the hypnogram's own
-# last segment, so a restless night's later sleep drained instead of recharging.
-# detect_ext_sleep() mirrors detect_naps()'s block-finding in the complementary
-# window -- starts within EXT_MAX_START_LAG_MIN of the hypnogram's own end, where
-# naps only start after it, so the two windows never overlap by construction.
-# These mirror ingest.py's EXT_* constants (kept as a separate copy, same posture
-# as NAP_MIN_BLOCK_MIN vs ingest.EXT_MIN_BLOCK_MIN) -- keep both in sync by hand.
-# No separate rate: same NAP_RECHARGE_RATE, since neither has a stage breakdown.
+# The strap never restarts a hypnogram if you fall back asleep. detect_ext_sleep()
+# recovers that from the same NAP_KIND signal, in the window just before naps
+# start, so the two never overlap. Recharges at NAP_RECHARGE_RATE (unstaged).
+# These mirror ingest.py's EXT_* constants -- keep both in sync by hand.
 EXT_MIN_BLOCK_MIN     = 15      # shorter than this is lying still, not sleep
 EXT_MAX_GAP_MIN       = 5       # bridge a turn-over inside the block
 EXT_MAX_START_LAG_MIN = 150     # exact complement of NAP_MIN_START_LAG_MIN
 EXT_LOOKAHEAD_MIN     = 300     # how far past the hypnogram's own wake to look
-# Forward-only: nights before this keep the old model (extension unrecharged).
-# Ship date, not the next day -- ingest recomputes today (and yesterday) on every
-# run anyway, so today is live, not settled.
+# Forward-only: nights before this get no extend-sleep recharge.
 EXT_CREDIT_START      = "2026-09-05"
 
-# -- §5 drain coefficients -----------------------------------------------------
+# -- @2 drain coefficients -----------------------------------------------------
 BASE_DRAIN       = 0.010   # always applied while awake (pts/min)
 STRESS_DRAIN_MAX = 0.050   # max additional drain from elevated stress
 STRESS_SPREAD    = 20
@@ -88,20 +70,11 @@ BASELINE_WINDOW  = 21
 #   Zone 5  Max       > +113            →  football, hockey, sprints
 HR_ZONE_THRESHOLDS = [10, 28, 53, 78, 113]          # upper bound of zones 0-4
 HR_ZONE_DRAINS     = [0.00, 0.01, 0.03, 0.07, 0.11, 0.17]  # zone 0-5
-# Zone 5 has no upper bound, so a flat 0.17 priced 186 bpm exactly the same as
-# 161 — the top ~24% of the HR reserve was invisible to the model, and a much
-# harder run cost barely more than a moderate one (measured 2026-08-20: a 36-min
-# run peaking 186 cost 1.38x a 27-min run peaking 172, when duration alone
-# accounts for 1.33x). Above the Zone-5 floor the rate now keeps climbing at the
-# curve's OWN established slope — (0.17-0.11)/(113-78) — rather than a guessed
-# steeper one, and is capped at measured max HR so a spurious reading can't run
-# away with the day.
+# Above the Zone-5 floor the drain keeps climbing at the Zone 4->5 slope,
+# capped at HR_MAX so a spurious reading can't run away with the day.
 HR_ZONE_TOP_SLOPE  = (HR_ZONE_DRAINS[5] - HR_ZONE_DRAINS[4]) / (HR_ZONE_THRESHOLDS[4] - HR_ZONE_THRESHOLDS[3])
-HR_MAX             = 195      # measured — HUAMI_HEART_RATE_MAX_SAMPLE, 2026-08-08
-# Forward-only gate, same posture as night_physio.RHR_FACTOR_START: settled days
-# keep the model they were computed under, so no stored history is re-shaped.
-# Set to the ship date rather than the next day because ingest recomputes today
-# (and yesterday) on every run anyway — today is live, not settled.
+HR_MAX             = 195      # measured from my body
+# Forward-only: days before this keep a flat Zone-5 drain, so history isn't re-shaped.
 HR_ZONE_TOP_START  = "2026-08-20"
 
 # Ambient gate: when intensity is low and no workout is logged the zone drain
@@ -109,12 +82,7 @@ HR_ZONE_TOP_START  = "2026-08-20"
 AMBIENT_GATE_INTENSITY = 20    # RAW_INTENSITY below this → ambient
 AMBIENT_GATE_FACTOR    = 0.35  # fraction of zone drain kept when ambient
 
-# -- §6 modifiers: coffee and alcohol ------------------------------------------
-# The real path on this server. ingest/calories/backfill_labels each still
-# override it explicitly, but the default used to be the original laptop's
-# Windows path — and load_events() turns FileNotFoundError into [], so any caller
-# that forgot the override got "no coffee, no alcohol, no workouts, ever" with no
-# error. A wrong default that fails silently is worse than one that fails loudly.
+# -- @3 modifiers: coffee and alcohol ------------------------------------------
 COFFEE_DURATION       = 150    # minutes of drain suppression
 COFFEE_SUPPRESS_MAX   = 0.60   # fraction suppressed when coffee is within COFFEE_FULL_WIN of wake
 COFFEE_SUPPRESS_MIN   = 0.20   # fraction suppressed for a late-day coffee
@@ -137,9 +105,7 @@ ALCOHOL_DEFAULT_UNIT      = 1.0
 # Scales with total standard-drink units (amount x units/drink), not just y/n.
 ALCOHOL_DRAIN_PER_UNIT       = 0.30   # extra drain multiplier per unit
 ALCOHOL_DRAIN_FACTOR_MAX     = 2.2    # cap so a heavy night doesn't blow up drain
-# NOTE: alcohol's effect on the night's sleep is applied to the SLEEP SCORE itself
-# (sleep_score.score_alcohol_penalty), which lowers morning_target automatically.
-# We no longer subtract a separate flat penalty from morning_target here.
+# Alcohol's effect on sleep is applied in sleep_score.score_alcohol_penalty.
 
 # -- Manual activity synthetic HR (strap not worn) -----------------------------
 # Any logged workout minute with no real HR data gets HR = RHR baseline +
@@ -155,7 +121,7 @@ ACTIVITY_HR_OFFSET = {        # bpm above resting-HR baseline at "moderado"
 INTENSITY_SCALE = {"leve": 0.7, "moderado": 1.0, "intenso": 1.3}
 SYNTHETIC_INTENSITY = 80      # above AMBIENT_GATE_INTENSITY; ensures exertion label
 
-# -- §9 segment labels ---------------------------------------------------------
+# -- @4 segment labels ---------------------------------------------------------
 SEG_MIN_DRAIN         = 3.0   # pts: minimum awake-span drain to surface a label
 SEG_EXERTION_I        = 55    # RAW_INTENSITY threshold for "exertion" tag
 SEG_EXERTION_HR_ABOVE = 78    # bpm above rhr_bl for "exertion" (≈ Zone 4+)
@@ -169,15 +135,10 @@ def minute_activity_score(intens, hr, rhr_bl):
 
     Single definition of the thresholds, shared by `_active_subspans` (which
     groups minutes into spans) and `ingest.build_minute_labels` (which colours
-    each minute on the chart). They used to score independently, which is how a
-    span could be tagged "exertion" off one peak minute while the chart painted
-    six hours of 85 bpm the same colour.
+    each minute on the chart), so the two can never disagree.
     """
     if hr is not None:
-        # HR is the authority for exertion whenever it exists. The old rule was
-        # `intensity > 55 OR hr_above > 78`, so a brisk walk at HR 90 with high
-        # RAW_INTENSITY scored "exertion" — movement is not effort. Exertion now
-        # means the heart is actually working: HR > rhr_bl + 78 (~125 bpm here).
+        # HR decides exertion whenever it exists: movement is not effort.
         hr_above = hr - rhr_bl
         if hr_above > SEG_EXERTION_HR_ABOVE:
             return 2
@@ -201,8 +162,7 @@ def clamp(v, lo, hi):
 # ── Per-date device timezone ──────────────────────────────────────────────────
 # A day starts at the midnight the *device* was on, not at Lisbon midnight.
 # ingest registers the offsets (from sleep_score.tz_offset_min) before computing;
-# with none registered every helper falls back to the home zone, so any caller
-# that hasn't been updated keeps its old behaviour.
+# with none registered every helper falls back to the home zone.
 
 _TZ_OFFSETS = {}     # datetime.date -> UTC offset in minutes
 _TZ_CACHE   = {}
@@ -238,7 +198,7 @@ def midnight_dt(date):
     return datetime.datetime(date.year, date.month, date.day, tzinfo=day_tz(date))
 
 
-# -- §6 modifiers --------------------------------------------------------------
+# -- @3 modifiers --------------------------------------------------------------
 
 def load_events():
     """Load all logged events as list of (aware_datetime, type_str, extra_dict)."""
@@ -352,7 +312,7 @@ def alcohol_presleep_units(events, bedtime, waketime):
     return units
 
 
-# -- §4 recharge ---------------------------------------------------------------
+# -- @1 recharge ---------------------------------------------------------------
 
 def score_to_seed(sleep_score):
     """Sleep score (0-100) -> desired level at wake (SEED_MIN-SEED_MAX)."""
@@ -549,7 +509,7 @@ def inject_manual_activity(activity, date, events, rhr_bl):
     For any logged workout with no real HR data, fill in synthetic HR by
     activity kind + intensity (see ACTIVITY_HR_OFFSET / INTENSITY_SCALE),
     with a 5-min ramp in/out. Minutes with real strap data are kept as-is.
-    Replaces the old hockey-only injector (2026-07-19); "hockey" maps to sport.
+    "hockey" maps to sport.
     """
     mid = midnight_dt(date)
     act = dict(activity)
@@ -594,7 +554,7 @@ def load_stress(con, date):
     return filled
 
 
-# -- §5 drain ------------------------------------------------------------------
+# -- @2 drain ------------------------------------------------------------------
 
 def compute_drain(intensity, hr, stress, rhr_bl, stress_bl, confirmed_workout=False,
                   top_slope=0.0):
@@ -604,9 +564,7 @@ def compute_drain(intensity, hr, stress, rhr_bl, stress_bl, confirmed_workout=Fa
     hr_val   = hr if hr is not None else rhr_bl
     hr_above = max(0.0, hr_val - rhr_bl)
 
-    # Zone-based drain from HR. Zones 0-4 are untouched by the top-slope change:
-    # the 2026-05-25 rewrite calibrated the low end specifically to stop social
-    # nights draining to the floor, and nothing below the Zone-5 floor moves.
+    # Zone-based drain from HR.
     if   hr_above < HR_ZONE_THRESHOLDS[0]: zone_drain = HR_ZONE_DRAINS[0]
     elif hr_above < HR_ZONE_THRESHOLDS[1]: zone_drain = HR_ZONE_DRAINS[1]
     elif hr_above < HR_ZONE_THRESHOLDS[2]: zone_drain = HR_ZONE_DRAINS[2]
@@ -721,9 +679,7 @@ def compute_day(con, date, sleep_score, start_level, all_sessions, events=None, 
                           confirmed_workout=workout_mask[t])
         level_at_bedtime = clamp(level_at_bedtime - d, FLOOR, CAP)
 
-    # Alcohol's sleep impact is baked into sleep_score now, so morning_target
-    # (derived from the score) already reflects it — no separate penalty here.
-    # recharge_factor then scales the target by physiological recovery quality
+    # recharge_factor scales the target by physiological recovery quality
     # (elevated RHR → factor < 1 → wake level below what duration alone implies).
     morning_target = clamp(score_to_seed(sleep_score) * recharge_factor, SEED_MIN, SEED_MAX)
 
@@ -751,11 +707,7 @@ def compute_day(con, date, sleep_score, start_level, all_sessions, events=None, 
 
     is_sleep = [code is not None and code != AWAKE_CODE for code in stage_map]
 
-    # Extend-sleep credit: return-to-sleep after the hypnogram ends, from the
-    # same RAW_KIND signal naps use (see EXT_* constants above). Kept out of
-    # stage_map for the same no-fabrication reason as naps -- there's no
-    # measured stage for it either, just a flat NAP_RECHARGE_RATE credit.
-    # Forward-only via EXT_CREDIT_START.
+    # Extend-sleep credit (see EXT_* constants): unstaged, so kept out of stage_map.
     ext_minutes  = set()
     ext_recharge = [0.0] * 1440
     ext_out      = []
@@ -768,11 +720,8 @@ def compute_day(con, date, sleep_score, start_level, all_sessions, events=None, 
                 start_min=s_min, end_min=e_min, minutes=e_min - s_min + 1,
                 recharge=round((e_min - s_min + 1) * NAP_RECHARGE_RATE, 2)))
 
-    # Naps: strap-detected daytime sleep in the awake window. Kept out of
-    # stage_map on purpose — a nap has no measured stage, so it is not a "light"
-    # minute; it gets its own recharge track and its own why_label. detect_naps
-    # picks up exactly where extend_sleep_from_activity stops (NAP_MIN_START_LAG
-    # after wake) and ends before the evening's real bedtime. Forward-only.
+    # Naps (see NAP_* constants): unstaged, so kept out of stage_map with their
+    # own recharge track and why_label.
     nap_minutes  = set()
     nap_recharge = [0.0] * 1440
     naps_out     = []
@@ -809,8 +758,7 @@ def compute_day(con, date, sleep_score, start_level, all_sessions, events=None, 
                 recharge=round(acc, 2),
                 stage_source="hypnogram" if codes else "unknown"))
 
-    # Forward-only: days before HR_ZONE_TOP_START keep the flat Zone-5 top they
-    # were computed under, so adding this signal re-shapes no stored history.
+    # Forward-only via HR_ZONE_TOP_START.
     top_slope = HR_ZONE_TOP_SLOPE if str(date) >= HR_ZONE_TOP_START else 0.0
 
     levels, drain_log = run_engine(
@@ -821,7 +769,7 @@ def compute_day(con, date, sleep_score, start_level, all_sessions, events=None, 
 
     # Post-process: apply recharge to pre-midnight sleep minutes.
     # Recharge is distributed proportionally across the FULL night (pre + post midnight)
-    # so the rate is consistent with what June D+1's engine will pick up from.
+    # so the rate is consistent with what the next day's (D+1) engine will pick up from.
     if _pre_bed_n_min is not None and next_score is not None:
         def _sw(code):
             return STAGE_WEIGHTS.get(code, 0.0) if (code is not None and code != AWAKE_CODE) else 0.0
@@ -857,7 +805,7 @@ def compute_day(con, date, sleep_score, start_level, all_sessions, events=None, 
     )
 
 
-# -- §9 segment labels ---------------------------------------------------------
+# -- @4 segment labels ---------------------------------------------------------
 
 def _active_subspans(start, end, activity, drain_log, rhr_bl, merge_gap=5):
     """
@@ -903,7 +851,7 @@ def _active_subspans(start, end, activity, drain_log, rhr_bl, merge_gap=5):
 
 
 
-# -- §3 batch-recompute helpers ------------------------------------------------
+# -- @5 batch-recompute helpers ------------------------------------------------
 
 
 

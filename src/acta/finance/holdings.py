@@ -3,11 +3,10 @@ Holdings for investment accounts — what sits in each stock, not just a total.
 
 Why this does not add a second source of truth
 ----------------------------------------------
-The finance model's founding rule (2026-07-25) is that `finance_balance` rows
-are the only truth for money; net worth, the history chart, the sparklines, the
-30-day change and the projection all read from them. Storing holdings *beside*
-a hand-entered balance would recreate exactly the drift bug that rule exists to
-prevent, one level down.
+The finance model's founding rule is that `finance_balance` rows are the only
+truth for money; net worth, the history chart, the sparklines, the 30-day change
+and the projection all read from them. Storing holdings *beside* a hand-entered
+balance would create two sources of truth, one level down.
 
 So holdings are an *input*, not a parallel record: writing holdings or prices
 recomputes the account's balance and upserts the ordinary `finance_balance` row

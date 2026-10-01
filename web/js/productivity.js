@@ -931,10 +931,8 @@
   //  FOCUS MODE  (localStorage per device; today total resets on date change)
   //
   //  Timestamp-based, not tick-counting: the clock is always derived from
-  //  Date.now(), so a backgrounded browser tab (setInterval throttled to once
-  //  a minute or paused) loses no time — the next tick just recomputes.
-  //  Storage version FOCUS_V bumped to 2 → the old date-less key that
-  //  accumulated forever is discarded and today starts at 0.
+  //  Date.now(), so a throttled background tab loses no time. FOCUS_V versions
+  //  the storage key.
   // ========================================================================
   const FOCUS_V = 2;
   const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };

@@ -6,18 +6,11 @@ reports the ones that survive a false-discovery-rate correction. Pure stdlib
 
 Why FDR rather than a fixed |r| bar
 -----------------------------------
-The old gate was |r| >= 0.30, which is a round number and not a statistical
-test. It was clipping real findings (bed_hour -> hrv at -0.294, bed_hour ->
-deep_min at -0.292, both with intervals well clear of zero) while offering no
-protection at all against the opposite problem: the grid runs hundreds of tests,
-and chance alone produces about 21 hits at p<0.05. Lowering the bar made that
-worse -- 0.30 gave 5 pairs, 0.20 gave 40.
-
-Benjamini-Hochberg fixes both ends. It adapts to how many tests actually ran and
-caps the expected share of false discoveries at FDR_Q, so the list grows only
-where the evidence does. MIN_R survives as a size floor to skip trivia, and the
-bootstrap interval is still computed for every survivor -- but to communicate
-uncertainty, not to decide.
+A fixed |r| bar is not a statistical test: it clips real findings and offers no
+protection against the hundreds of tests the grid runs. Benjamini-Hochberg adapts
+to how many tests ran and caps the expected share of false discoveries at FDR_Q.
+MIN_R is only a size floor to skip trivia; the bootstrap interval is computed for
+every survivor to communicate uncertainty, not to decide.
 
 Correlation is still not causation, and the FDR bounds the false-discovery
 fraction rather than eliminating it -- findings are leads for the experiment
@@ -25,25 +18,15 @@ runner.
 
 Why the grid is all-objective, and why some pairs are skipped
 ------------------------------------------------------------
-Two problems were fixed on 2026-08-22, after an audit found the sweep was
-producing 19 findings of which roughly one was usable.
+*Objective targets only.* Subjective ratings are not swept: the point is to
+surface what can't already be felt, not to fit self-report.
 
-*Dead and subjective targets.* `sleep_rating` and `body_energy` accounted for 12
-of the 19 findings, all frozen at n=39 — logging both stopped on
-2026-07-04, deliberately: an app fitted to how you say you feel can only hand
-back your own opinion, and the whole point is to surface what you cannot already
-feel. They are gone, along with `mental_evening` on the predictor side for the
-same reason, and `onset_min`, which is 0 on all 117 nights and so was only ever
-a constant series the sweep silently skipped. Objective outcomes replace them.
-
-*Structural pairs.* The strongest "finding" in the old output was RHR → HRV at
-r=-0.90, which is not a discovery: both are computed from the same nocturnal
-heart-rate signal. Likewise WASO → sleep score, when WASO is an input to that
-score, and RHR → RHR one night later, which is autocorrelation. These crowded
-out the real leads. They are now filtered — but only where the relationship is
-definitional, i.e. at lag 0 for shared-signal and score-input pairs, and at
-every lag for a variable against itself. Yesterday's WASO predicting tomorrow's
-score is a genuine question and is still swept.
+*Structural pairs.* Some correlations are definitional, not discoveries: RHR and
+HRV share one heart-rate signal, WASO is an input to the sleep score, and a
+variable against itself is autocorrelation. These are filtered only where the
+relationship is definitional -- at lag 0 for shared-signal and score-input pairs,
+and at every lag for a variable against itself. Yesterday's WASO predicting
+tomorrow's score is a genuine question and is still swept.
 
 CLI:  python -m acta.insights.lag_mining            # full report
       python -m acta.insights.lag_mining --excluded # also list what the filter removed
@@ -59,27 +42,14 @@ MIN_N = 20        # min paired samples
 
 # A size floor, not a significance test. It exists only to skip trivia; whether
 # a correlation is real is decided by FDR_Q below.
-#
-# It used to be 0.30, which was a round number rather than a statistical bar,
-# and it was clipping real findings: bed_hour -> hrv at -0.294 and
-# bed_hour -> deep_min at -0.292 were both excluded while their confidence
-# intervals comfortably excluded zero.
 MIN_R = 0.15
 
-# Benjamini-Hochberg false-discovery rate.
-#
-# The grid runs 418 unique tests after the definitional filter, so chance alone
-# yields about 21 hits at p<0.05 -- which is why simply lowering MIN_R floods
-# the output (0.30 gives 5 pairs, 0.20 gives 40). BH adapts to how many tests
-# actually ran and caps the expected share of false discoveries, so the list
-# grows only where the evidence grows. At q=0.10 it reports 13.
+# Benjamini-Hochberg false-discovery rate: adapts to how many tests ran and caps
+# the expected share of false discoveries, so lowering MIN_R can't flood the output.
 FDR_Q = 0.10
-# effective_n is REPORTED, not decisive. It answers "how many values are not the
-# most repeated one", which reacts to how a number was written rather than what
-# it means: pai_high_min_prev (whole minutes) scored 17 while pai_prev (two
-# decimals, r=+0.96 with it -- the same signal) scored 114. What actually
-# matters is how much the correlation depends on which nights happened to be in
-# the data, and features.bootstrap_ci measures that directly.
+# effective_n is REPORTED, not decisive: it reacts to how a number is written
+# rather than what it means. features.bootstrap_ci measures what matters -- how
+# much the correlation depends on which nights are in the data.
 BOOTSTRAP_B = 1000
 
 # predictors: (key, human label)
@@ -113,12 +83,8 @@ TARGETS = [
     ("mid_sleep",   "sleep midpoint"),
 ]
 
-# hr_dip is deliberately in neither list. It is resting_hr minus the lowest
-# sleeping HR, so it largely shadows RHR (r=+0.74 with it), and in this data a
-# BIGGER dip tracks WORSE recovery -- against HRV it is r=-0.57. Every finding
-# it produced therefore read backwards from intuition and needed a paragraph of
-# explanation to be understood. It was generating 4 of 13 findings and adding
-# confusion rather than information.
+# hr_dip is deliberately in neither list: it largely shadows RHR, and a bigger
+# dip tracks worse recovery here, so its findings read backwards from intuition.
 LAGS = [0, 1, 2]  # nights ahead
 
 # Pairs whose correlation is definitional rather than informative.
@@ -128,9 +94,8 @@ LAGS = [0, 1, 2]  # nights ahead
 # sleep score is built from, so predicting the score with them at lag 0 is
 # reading the formula back out. Both are skipped ONLY at lag 0 — across nights
 # they become real questions.
-# Each entry is a pair whose same-night correlation is arithmetic, with the
-# reason it is arithmetic. Listed one by one rather than inferred, so adding a
-# feature forces a deliberate decision about what it is derived from.
+# Listed one by one, with the reason, rather than inferred, so adding a feature
+# forces a deliberate decision about what it is derived from.
 DEFINITIONAL = {
     frozenset(("rhr", "hrv")):            "both computed from the same nocturnal HR signal",
     frozenset(("rhr", "hr_dip")):         "hr_dip is measured against RHR",
@@ -139,29 +104,24 @@ DEFINITIONAL = {
     # two with no free term, so it is definitional against BOTH of them.
     frozenset(("bed_hour", "mid_sleep")):  "mid_sleep is computed from bedtime",
     frozenset(("mid_sleep", "wake_hour")): "mid_sleep is computed from wake time",
-    # asleep_min against bed_hour or wake_hour is deliberately NOT here. Sleep
-    # length has a free term (time awake in bed) and, more to the point, "later
-    # bedtime costs sleep" is only true if he fails to compensate by waking
-    # later -- which is a fact about his behaviour, not about arithmetic.
-    # {asleep_min, mid_sleep} was listed here and was simply wrong: mid_sleep is
-    # the sum and asleep_min the difference of the same two numbers, which are
-    # independent, and the data agrees at r=+0.10.
+    # asleep_min against bed_hour or wake_hour is deliberately NOT here: sleep
+    # length has a free term (time awake in bed), and whether a later bedtime costs
+    # sleep depends on behaviour (waking later to compensate), not arithmetic.
+    # {asleep_min, mid_sleep} isn't either: they are the sum and difference of two
+    # independent numbers.
     frozenset(("asleep_min", "deep_min")): "deep sleep is part of total sleep",
     frozenset(("asleep_min", "rem_min")):  "REM is part of total sleep",
     frozenset(("asleep_min", "waso_min")): "both partition time in bed",
     frozenset(("deep_min", "rem_min")):    "both scale with total sleep",
     # Huami computes PAI points FROM time in the heart-rate zones, so points
-    # against zone minutes is the formula read back out. Measured r=+0.85 and
-    # +0.96. Not reachable from lag_mining's own grid (no PAI key is a target),
-    # but explore.py proposes freely and hit it on its first run.
+    # against zone minutes is the formula read back out. Not reachable from this
+    # grid (no PAI key is a target), but explore.py proposes freely.
     frozenset(("pai_prev", "pai_mod_min_prev")):  "PAI points are computed from zone minutes",
     frozenset(("pai_prev", "pai_high_min_prev")): "PAI points are computed from zone minutes",
 }
-# Verified against Personal Dashboard/sleep_score.py: score_regularity scores
-# (bedtime + waketime)/2, so wake_hour is as much an input as bed_hour.
-# hr_dip was dropped from score_physio's v2 spec (2026-09-07) but stays here: it
-# is resting_hr minus the lowest sleeping HR (r=+0.73 with RHR), and RHR remains
-# a physio input, so hr_dip -> score is still arithmetic, not a discovery.
+# Per sleep_score.score_regularity, which scores (bedtime + waketime)/2, wake_hour
+# is as much an input as bed_hour. hr_dip isn't a v2 physio input, but it
+# shadows resting_hr (which is), so hr_dip -> score is still arithmetic.
 SCORE_INPUTS = {"asleep_min", "waso_min", "bed_hour", "wake_hour", "deep_min",
                 "rem_min", "rhr", "hrv", "hr_dip", "mid_sleep"}
 
@@ -240,9 +200,7 @@ def mine():
                     "n": n, "effective_n": eff, "xs": xs, "ys": ys})
     # ── Benjamini-Hochberg ────────────────────────────────────────────────────
     # Sort every p-value that was computed, find the largest rank i where
-    # p(i) <= i/m * q, and keep the candidates at or under that threshold. The
-    # bar adapts to how many tests ran: 418 of them here, where p<0.05 alone
-    # would let roughly 21 through by chance.
+    # p(i) <= i/m * q, and keep the candidates at or under that threshold.
     pvals.sort()
     m = len(pvals) or 1
     cutoff = 0.0

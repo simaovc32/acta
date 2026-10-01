@@ -35,7 +35,7 @@
   };
   const LIB_FLAT = Object.values(LIBRARY).reduce((a, b) => a.concat(b), []);
 
-  // ── exercise tags + "similar exercises" (BEGIN — the Node test loads exactly this block) ──
+  // ── exercise tags + "similar exercises" (BEGIN) ──
   // Powers the "Suggested" group at the top of the change-exercise dropdown and the
   // equipment text next to exercise names. Hand-tagged and deterministic: no model
   // call, so it is instant, works offline at the gym and can never suggest an
@@ -252,16 +252,16 @@
   // An exercise with mode:'time' uses a per-set duration + a countdown in the
   // guided session, instead of weight×reps. Sets carry {durationSec, actualSec}.
   function isTime(ex) { return !!ex && ex.mode === 'time'; }
-  // ── how much weight a set actually moves (2026-09-21) ───────────────────────────────────────────────
-  // I log the number written on the implement and never adds hands together: two 12.5 kg
+  // ── how much weight a set actually moves ───────────────────────────────────────────────
+  // Weights are logged as written on the implement, never summed across hands: two 12.5 kg
   // dumbbells are entered as "12.5", a machine is the stack as set, a barbell is the loaded bar. So one
   // line of a two-dumbbell exercise moves twice what it says — and so does an "each side" exercise, where
   // the same reps are done once per limb. One multiplier covers both cases.
   //
   // The default comes from the exercise name, because the name is the only thing the plan carries. An
   // explicit ex.x2 (true or false) wins, for the ones a name cannot settle: a barbell curl and an
-  // overhead extension held with both hands are single (x1); a machine I named after a dumbbell
-  // movement is single too. Weight entered before this existed was a mix of conventions, so volume from
+  // overhead extension held with both hands are single (x1), and so is a machine named after a dumbbell
+  // movement. Weight entered before this existed was a mix of conventions, so volume from
   // older sessions is not comparable with today's — the stored session rows keep their old numbers.
   const X2_NAMES = [
     // chest — one dumbbell in each hand
@@ -352,13 +352,9 @@
   }
 
   // The plan is a 7-day template of day *types*, each holding one or more
-  // interchangeable exercise variants (List A/B/C · No-equipment). `pick` is the
-  // selected variant, remembered across the weekly reset. Cardio days set
-  // `cardio: true` (rendered as a run card, not the set grid) and hold one
-  // variant. Marked `_schema: 3`: an older plan auto-migrates on load — a
-  // pre-variant Push/Pull/Legs plan is replaced wholesale, a `_schema: 2` plan
-  // keeps its strength days and only regenerates the cardio ones (see
-  // ensureSeeded).
+  // interchangeable exercise variants (List A/B/C · No-equipment). `pick` is the selected
+  // variant, kept across the weekly reset. Cardio days set `cardio: true` and hold one
+  // variant. Marked `_schema: 3`; older plans auto-migrate on load (see ensureSeeded).
   function defaultPlan() {
     const friTail = () => [
       mkEx('Negative Pull-up (5–8s lower)', sr(3, 4), 'Back'),
@@ -696,11 +692,8 @@
       : '<img src="' + esc(url) + '" alt=""' + s + '>';
   }
 
-  // Media is uploaded from the library, keyed by the canonical exercise name.
-  // Plan exercises carry qualifiers the library names don't — "Renegade Row
-  // (each side)", "Superman Holds", "Goblet Squat — 3s pause at bottom",
-  // "Glute Bridge w/ Dumbbell" — so a raw slug lookup misses the file during a
-  // guided session. normKey() strips those so both sides land on one key.
+  // Media is keyed by the canonical library name; plan names add qualifiers ("Renegade Row
+  // (each side)"), so normKey() strips them and both sides land on one key.
   function normKey(name) {
     const base = String(name).toLowerCase()
       .replace(/\([^)]*\)/g, ' ')               // "(each side)", "(weighted if easy)"
@@ -781,8 +774,7 @@
         apiPutPlan();
       }
     } else {
-      // No plan yet, or a pre-variant (Push/Pull/Legs) plan → seed the current
-      // template. The old plan is replaced, not migrated in place.
+
       WK.plan = defaultPlan(); WK.weekKey = currentMondayKey();
       await apiPutPlan();
     }
@@ -804,12 +796,9 @@
   }
 
   // ── one-off day-type override ────────────────────────────────────────────
-  // "I forgot push day, do it today." The weekly plan is a template reused every
-  // week, so swapping a day must NOT rewrite it. Instead a single override lives
-  // inside the plan doc under a non-day key (`_override`) — the API only requires
-  // the 7 day keys to be present, so extra keys ride along with no backend change.
-  // It is stamped with a date and only honoured on that date, so it expires by
-  // itself when the day rolls over. Nothing is ever lost or overwritten.
+  // A one-day swap lives under `_override` in the plan doc (the API only requires the
+  // 7 day keys), stamped with a date and honoured only on that date, so it expires
+  // by itself. The weekly template is never rewritten.
   function todayISO() {
     const d = new Date();
     return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
@@ -831,11 +820,9 @@
   // rest day carries one variant (the chip row hides). `pick` persists across
   // the weekly reset — the exercise progress is what clears, not the choice.
   //
-  // Readiness trim (2026-09-15): same idea as `_override` below — a one-day
-  // adjustment must never rewrite the recurring day template. `_trim_applied`
-  // stores only a substitute `variants` array, date+day-stamped; this is the
-  // single place that swaps it in, so every reader (durations, set counts,
-  // the timer) sees the trimmed numbers without WK.plan[day] itself changing.
+  // Readiness trim: like `_override`, `_trim_applied` holds a date-stamped substitute
+  // `variants` array. This is the single place it's swapped in, so every reader sees
+  // the trimmed numbers without WK.plan[day] changing.
   function appliedTrimToday() {
     const a = WK.plan && WK.plan._trim_applied;
     return (a && a.date === todayISO()) ? a : null;
@@ -951,13 +938,9 @@
   }
 
   // ── swap scope: "just today" vs "from now on" ─────────────────────────────
-  // Picking a new exercise for TODAY's session asks which one you mean. A "just
-  // today" swap renames the exercise in place and remembers the original on the
-  // exercise itself (`revert`: date + name + muscle + mode + set targets); once
-  // the date has moved on, maybeDayRevert() puts it all back. Deliberately NOT a
-  // copy of the whole day (that's how the readiness trim works): with a copy,
-  // every weight you edit today would go to a throwaway and your progression on
-  // the other exercises would be lost. Only this one exercise is affected.
+  // A "just today" swap renames the exercise in place and stores the original on it
+  // (`revert`); maybeDayRevert() restores it once the date moves on. Not a whole-day copy
+  // (as the readiness trim does), so weight edits to the other exercises still count.
   function isTrimmedDay(k) {
     const d = WK.plan && WK.plan[k];
     return !!d && variantsOf(k) !== d.variants;   // a readiness trim already makes every edit today-only
@@ -1068,11 +1051,9 @@
   }
 
   // ── drag-and-drop reorder (mouse; touch uses the ▲/▼ buttons) ─────────────
-  // Only the grip is draggable — making the whole card draggable would break text
-  // selection inside the weight/reps inputs. DRAG_TYPE marks *our* drags so a file
-  // or text dragged over the tab is ignored. State lives in module vars, not in
-  // dataTransfer (unreadable during dragover), and is cleared on drop *and*
-  // dragend: the drop re-renders, detaching the source, so dragend may never reach us.
+  // Only the grip is draggable (keeps text selection in inputs); DRAG_TYPE ignores foreign drags.
+  // State lives in module vars (dataTransfer is unreadable during dragover) and is cleared
+  // on drop and dragend, since the drop's re-render may stop dragend from firing.
   const DRAG_TYPE = 'application/x-wk-exercise';
   let dragEi = null;     // index of the exercise being dragged
   let dropIns = null;    // insertion slot 0..n (before card k), null = drop would change nothing
@@ -1177,10 +1158,8 @@
     else { t.startEpoch = Date.now(); t.running = true; }
     saveActiveLS(); render();
   }
-  // Full reset of the session on screen (↺, after the confirm). It used to clear only
-  // the stopwatch, leaving a paused guided session ("Resume training", old cursor,
-  // notes/pain) and every ticked set behind. Same per-set rule as the weekly reset:
-  // progress goes, weights/targets stay. Saved history sessions are never touched.
+  // Full reset (↺, after the confirm): timer, guided session, cursor and ticked sets.
+  // Weights/targets stay, as in the weekly reset; saved history is never touched.
   function resetTraining() {
     releaseWakeLock();
     curExs().forEach(e => e.sets.forEach(s => { s.done = false; s.reps = null; s.rpe = null; s.actualSec = null; }));
@@ -1259,11 +1238,10 @@
     else if (t.timeEndEpoch) t.timeEndEpoch += 15000;
     saveActiveLS(); render();
   }
-  // ── settings: rest timers (2026-09-21) ─────────────────────────────────────────────────────────────────
-  // Two rests, chosen in the ⚙ Settings popup: between sets (the next step is the same exercise) and between
-  // exercises (the next step is a different one). Both default to the old fixed 45 s, so nothing changes until
-  // you change them. Kept in localStorage on this device on purpose: a preference must never be able to touch
-  // the synced plan, and the phone at the gym is where it matters.
+  // ── settings: rest timers ─────────────────────────────────────────────────
+  // Two rests, chosen in the ⚙ Settings popup: between sets (same exercise next) and between
+  // exercises (a different one next). Both default to 45 s. Stored in localStorage, so each
+  // device keeps its own settings and a preference can never touch the synced plan.
   const WK_LS_SETTINGS = 'acta_workout_settings_v1';
   const REST_MIN = 10, REST_MAX = 600, REST_STEP = 5;
   const REST_PRESETS = [30, 45, 60, 90, 120, 180];
@@ -2027,11 +2005,8 @@
   }
 
   // ── exercise-image popup ───────────────────────────────────────────────────
-  // A small centred card over whatever screen is up (guided rest screen or the
-  // plan cards). It lives on <body> and is rebuilt ONLY when its target changes:
-  // render() runs constantly, and rebuilding innerHTML would restart the <video>
-  // loop every time (same trap as the guided work screen). State is a snapshot
-  // {name, muscle, from} so it survives plan edits while open.
+  // A centred card on <body>, rebuilt only when its target changes (rebuilding on every
+  // render() would restart the <video>). State is a {name, muscle, from} snapshot.
   let popKey = null;
   function openMedia(ei, from) {
     const ex = curExs()[ei];
@@ -2575,7 +2550,7 @@
   }
 
   // ── media upload ───────────────────────────────────────────────────────────
-  const MAX_VIDEO_BYTES = 50_000_000;  // must match api.py
+  const MAX_VIDEO_BYTES = 50_000_000;  // must match api/routers/workout.py
   const ALLOWED_EXTS = ['mp4', 'webm', 'mov', 'gif', 'jpg', 'jpeg', 'png', 'webp'];
   async function onFilePicked() {
     const f = fileInput.files && fileInput.files[0];

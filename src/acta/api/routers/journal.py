@@ -57,10 +57,8 @@ def mental_history(days: int = Query(default=30, ge=1, le=90)):
         except (KeyError, ValueError):
             continue
         # Event times are bare wall clock, so they must be resolved against the
-        # zone the device was on that day — the same rule modifiers_active uses.
-        # Pinning them to Lisbon put a coffee logged abroad an hour from when it
-        # happened, which shifted the 180-min window and mis-flagged the
-        # mental_state entries near its edges as caffeinated (or not).
+        # zone the device was on that day — the same rule modifiers_active uses —
+        # or the caffeine window shifts for coffees logged abroad.
         coffee_ms.append(int(naive.replace(tzinfo=device_tz(
             int(naive.replace(tzinfo=TZ).timestamp() * 1000), tzi)).timestamp() * 1000))
 
@@ -112,12 +110,7 @@ def log_workout(evt: WorkoutEvent):
 
 
 class FeelingEntry(BaseModel):
-    # sleep_rating and body_energy were removed on 2026-08-29. Logging both
-    # stopped on 2026-07-04, deliberately: an app fitted to how you say you
-    # slept can only hand back your own opinion, and the point of Acta is to
-    # measure what the body did. lag_mining had already dropped them as targets
-    # (they were producing 12 of 19 findings, all frozen at n=39). mental_state
-    # stays because it is only ever described, never fed into a score.
+    # Only mental_state is served: it is only ever described, never fed into a score.
     mental_state:   Optional[int]  = None   # 1–10, multiple per day
     mental_time:    Optional[str]  = None   # "HH:MM" for mental state timestamp
     note:           Optional[str]  = None
@@ -206,8 +199,7 @@ def log_feeling(entry: FeelingEntry):
                 alcohol_event["kind"] = entry.alcohol_type
             new_events.append(alcohol_event)
 
-        # A chat assistant is the live caller of this endpoint now that the
-        # dashboard's own coffee/alcohol toggles are gone, so this is a real
+        # A chat assistant is the live caller of this endpoint, so it is a real
         # concurrent writer and takes the same lock as every other path.
         #
         # Coffee is deduped against what is already logged, because the assistant and a

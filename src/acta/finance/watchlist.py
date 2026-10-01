@@ -1,7 +1,7 @@
 """
 Watchlist — companies the user is curious about but doesn't hold. Deliberately
 separate from finance_holding: an entry here is not money, carries no
-quantity or cost basis, and (see api.py) is NOT behind the finance PIN —
+quantity or cost basis, and (see api/routers/portfolio.py) is NOT behind the finance PIN —
 that's what lets Summary's !portfolio watch/unwatch write to it unattended,
 the same table backing the dashboard's own "Watching" widget.
 """

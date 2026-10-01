@@ -1,7 +1,7 @@
 """validate_zones — check biocharge's HR zone boundaries against the device's own.
 
-biocharge.HR_ZONE_THRESHOLDS was set by reasoning in May 2026 and has never been
-independently checked. HUAMI_PAI_SAMPLE turns out to carry the device's *own*
+biocharge.HR_ZONE_THRESHOLDS was set by reasoning, not measurement.
+HUAMI_PAI_SAMPLE carries the device's *own*
 zone accounting (TIME_LOW / TIME_MODERATE / TIME_HIGH minutes per day), computed
 by Huami from the same raw heart rate. That makes it an independent second
 opinion on where the zone lines sit -- the same cross-validation logic that made
@@ -12,9 +12,8 @@ READ-ONLY DIAGNOSTIC. Prints a report and exits. It deliberately does not tune
 anything: same posture as training_response.py, which exists to inform a human
 decision and is never wired to adjust a constant on its own. Any change to
 HR_ZONE_THRESHOLDS would be a separate, deliberate, forward-only edit -- the
-zones below 160 bpm were calibrated in the 2026-05-25 rewrite specifically to
-stop social nights draining to the floor, and that fix must not be undone by an
-optimiser chasing agreement with Huami.
+low zones are calibrated so social nights don't drain to the floor, and that
+must not be undone by an optimiser chasing agreement with Huami.
 
 Two things it reports:
   1. AGREEMENT -- how biocharge's zone minutes compare to the device's, per day.
@@ -163,13 +162,9 @@ def main():
         print(f"  mean absolute error: {mae:.0f} min/day")
         print(f"  biocharge's equivalent lines: moderate(z3) starts RHR+{BC.HR_ZONE_THRESHOLDS[2]}, "
               f"high(z4) starts RHR+{BC.HR_ZONE_THRESHOLDS[3]}")
-        # A large residual means the threshold model itself is wrong, not that
-        # the best-fit numbers above are the device's real lines. Measured at
-        # 735 min/day on the first run: no (lo, mid) pair reproduces Huami's
-        # counts, and restricting to sustained bouts does not close the gap
-        # either (bout minutes came out far BELOW the device's totals while
-        # all-day elevated minutes came out far above). Huami's zone accounting
-        # is therefore doing something not recoverable from per-minute HR alone.
+        # A large residual means the threshold model itself is wrong, not that the
+        # best-fit numbers above are the device's real lines: Huami's zone accounting
+        # isn't fully recoverable from per-minute HR alone.
         if mae > 60:
             print(f"\n  ⚠ residual is large ({mae:.0f} min/day) — the 'count minutes past a")
             print("    threshold' model does NOT reproduce the device's numbers, so the")

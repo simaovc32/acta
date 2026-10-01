@@ -3,31 +3,13 @@ auspex — the analyst that explains Acta's data back to you.
 
 Why Python decides and the model only narrates
 ----------------------------------------------
-The obvious design is to hand a language model a table of nights and ask "what
-is degrading?". It was tried (Phase 0 spike, 2026-08-22) and it fails in a
-specific, repeatable way: the model reads high variance as a downward trend. Of
-five sleep components it called the two with the largest standard deviation
-"clearly degrading" and the three with the smallest "noise", which is ranking by
-volatility, not by trend. The true drift over 110 nights was under 0.6 points
-per 30 nights against a night-to-night sd of 6 -- nothing at all.
-
-Handing it the statistic did not fix it. Given `trend_vs_sd = 0.075` and a note
-that values well under 1.0 mean no trend, it still answered "degrading", writing
-"despite the low ratio, the absolute decline is notable". It also called the
-component with the *highest* ratio noise in the same breath, so it was not
-applying the number even inconsistently -- it was re-telling the story it had
-already decided on.
-
-What did work was giving it a `verdict` field and stating that the verdict is
-authoritative and may not be contradicted. So that is the contract here: every
+Language models read high variance as a trend and ignore statistics they are
+handed, but they reliably respect an authoritative `verdict` field. So every
 judgment -- is this a trend, is this day unusual, which nights are the worst,
 does this group differ from that one -- is computed in Python and shipped as a
-decided fact. The model's job is to explain and connect facts, never to derive
-them. A question whose answer needs a new judgment needs a new Python function,
-not a cleverer prompt.
-
-This is the same posture the rest of Acta already takes: readiness, PAI
-detection and lag mining all decide in code and use prose only to present.
+decided fact. The model only explains and connects facts, never derives them.
+A question that needs a new judgment needs a new Python function, not a
+cleverer prompt.
 
 Read-only over health data
 --------------------------
@@ -49,9 +31,7 @@ than trusted.
 mental_state is a one-way valve
 -------------------------------
 `user_log.kind='mental_state'` may be *read* here and described. It must never
-feed biocharge, readiness or any score. Acta's value is telling the user things they
-cannot already feel; an algorithm fitted to how they say they feel would just
-return their own opinion with extra steps. Reading it to explain is fine; letting
+feed biocharge, readiness or any score: reading it to explain is fine; letting
 it move a number is not.
 
 CLI:
@@ -76,15 +56,9 @@ TZ = config.TZ
 ENV_FILES = (config.ENV_FILE,)
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 
-# gemma-3-12b holds the verdicts as reliably as the 235B model on the regression
-# cases (false premise, NOISE verdict, given ranking) and answers in 1-3s rather
-# than 8-15s. Latency is the reason, not cost -- the whole month runs on pennies
-# either way. qwen stays as the fallback, so a gemma outage degrades to the
-# slower model rather than to no answer.
-#
-# There IS a floor: llama-3.1-8b was tested and failed twice, affirming a false
-# premise and contradicting a NOISE verdict outright. Anything smaller than this
-# needs re-testing against the regression cases before it goes in.
+# gemma-3-12b holds the verdicts as reliably as larger models on the regression
+# cases and answers much faster; qwen stays as the fallback. Any smaller model
+# must be re-tested against the regression cases before it goes in.
 LLM_MODEL = "google/gemma-3-12b-it"
 LLM_FALLBACKS = ["qwen/qwen3-235b-a22b-2507"]
 # See "Privacy" above. zdr is the guardrail, order is the preference.
@@ -291,13 +265,8 @@ def compare_groups(a, b, *, label_a: str = "A", label_b: str = "B") -> dict:
 def one_sample_verdict(deltas, *, label: str = "change") -> dict:
     """Is a set of paired differences distinguishable from zero?
 
-    recovery_curve previously answered this by pooling every session's 14-night
-    baseline into one group and comparing it against the post-session nights.
-    That re-counted the same nights up to fourteen times: 308 "observations"
-    drawn from at most 117 distinct nights. The inflated n drove the standard
-    error toward zero, so the test behaved as though the baseline mean were
-    known exactly, and Cohen's d became distance-from-baseline rather than an
-    effect size. One paired delta per session is the honest unit.
+    One paired delta per session is the unit: pooling every session's baseline
+    would re-count the same nights and inflate n.
     """
     xs = [float(v) for v in deltas if v is not None]
     n = len(xs)
@@ -341,10 +310,8 @@ def _pct_rank(value: float, pool) -> float:
 
 
 def unusual_verdict(value: float, pool, *, label: str = "value") -> dict:
-    """Is today actually unusual, or does it only feel that way? This is what
-    stops the model inventing an explanation for a normal day -- in the spike it
-    was asked why energy was low on a day that was in fact the week's best, and
-    without this it opened by agreeing with the premise."""
+    """Is today actually unusual, or does it only feel that way? Stops the model
+    inventing an explanation for a normal day (or agreeing with a false premise)."""
     xs = [float(v) for v in pool if v is not None]
     if len(xs) < 5:
         return {"verdict": "INSUFFICIENT DATA", "n": len(xs),
@@ -375,14 +342,7 @@ def _render(title: str, blocks: list[str]) -> str:
 
 
 def _num(v, spec: str = "", dash: str = "—") -> str:
-    """Format a number that may be absent.
-
-    Every crash the 2026-08-22 review found was the same shape: an f-string
-    applying a numeric format to a None that only appears when history is thin.
-    The verdict machinery is otherwise careful to degrade to INSUFFICIENT DATA,
-    so a 500 on a young database was the one place it stopped being honest and
-    started being broken.
-    """
+    """Format a number that may be absent (None appears when history is thin)."""
     if v is None:
         return dash
     try:
@@ -430,13 +390,9 @@ def _now_ms() -> int:
 def _window_mean(con, date_iso: str, h_from: int, h_to: int):
     """Mean biocharge between two device-local hours. h_to is exclusive.
 
-    Capped at the present moment. The biocharge table is pre-filled for all 1440
-    minutes of the current day, so an uncapped average over "this afternoon"
-    silently blends real minutes with a synthetic flat-drain extrapolation of
-    hours that have not happened -- and then compares the result against 30
-    complete prior days, so the bias runs one way. Measured on a live 15:47:
-    61.5 uncapped versus 64.9 capped, handed to the model as an authoritative
-    percentile verdict.
+    Capped at the present moment: the biocharge table is pre-filled for all 1440
+    minutes of today, so an uncapped average would blend in extrapolated hours
+    that haven't happened.
     """
     _a, _b, t0 = _day_window(date_iso)
     a = (t0 + h_from * 3600) * 1000
@@ -566,10 +522,7 @@ def wake_recharge(con, date_iso: str = None, **_) -> tuple[dict, str]:
     reached by recharging from the level you went to bed at, stage-weighted,
     and it falls short of that target only when the night was too short to
     deliver the full recharge. So this computes the identity and ships a
-    decided dominant factor. day_deep_dive (which wake_level used to borrow)
-    handed the model a pile of night stats instead and got "your wake level
-    was likely influenced by a night with an unusually high resting HR" —
-    true, unquantified, and hedged.
+    decided dominant factor.
 
     score_to_seed and the SEED bounds are biocharge.py's; the recharge factor
     (RHR vs its 28-night baseline, forward-only gated, clamped 0.85–1.10) is
@@ -803,22 +756,10 @@ def bedtime_drift(con, weeks: int = 8, **_) -> tuple[dict, str]:
         hours.append(h)
     facts = {"n_nights": len(rows), "bed_hour_trend": trend_verdict(hours)}
 
-    # Consistency, measured without a smoother.
-    #
-    # This was a 7-night rolling standard deviation run through trend_verdict,
-    # and it produced the only REAL TREND the whole system emitted. It was an
-    # artifact: consecutive windows share six of their seven nights, so the
-    # series' own sd (0.37) is 2.5x smaller than the night-to-night sd it was
-    # being compared against (0.94), making the ratio gate 2.5x easier, and the
-    # r was computed over 50 windows with 86% overlap. On non-overlapping blocks
-    # the same slope gives p about 0.10. The detail string then described 0.37
-    # as "a night-to-night sd", which it is not -- a false label under a header
-    # telling the model not to contradict it.
-    #
-    # Each night now contributes exactly one independent observation: how far
-    # its bedtime sits from the window's median. Whether the schedule is coming
-    # apart is then an ordinary two-group question, answered by the same tested
-    # machinery as everything else.
+    # Consistency, measured without a smoother: each night contributes one
+    # independent observation (how far its bedtime sits from the window's median),
+    # and drift is an ordinary two-group question. A rolling sd would overlap
+    # windows and make the trend gate artificially easy to pass.
     if len(hours) >= 2 * GROUP_MIN_N:
         med = statistics.median(hours)
         dev = [abs(h - med) for h in hours]
@@ -1014,13 +955,8 @@ _CONTROLLABLE = [("bed_hour", "bedtime"),
 
 def _corr_verdict(xs, ys, *, label: str, pk: str = None, tk: str = None,
                   lag: int = 0) -> dict:
-    """Pearson r on lag_mining's gates -- now actually all of them.
-
-    The docstring used to claim parity with lag_mining while applying neither
-    its definitional filter nor any significance test. That made this the one
-    path where a tautology could be reported as a lever, and where |r| >= 0.30
-    at n = 20 (p about 0.20) counted as a finding. Pass pk/tk to get the
-    structural check; the significance gate always applies.
+    """Pearson r on lag_mining's gates. Pass pk/tk to get the structural
+    (definitional-pair) check; the significance gate always applies.
     """
     from acta.insights import features, lag_mining
     if pk and tk:
@@ -1038,10 +974,8 @@ def _corr_verdict(xs, ys, *, label: str, pk: str = None, tk: str = None,
     if len(set(a)) < 2 or len(set(b)) < 2:
         return {"label": label, "n": n, "verdict": "NO SIGNAL",
                 "detail": "one of the two series never varies"}
-    # effective_n is reported, never decisive. It is a useful thing to see -- "0
-    # on 112 of 117 nights" tells you something real -- but as a gate it reacted
-    # to how a number was written rather than what it meant. See
-    # features.bootstrap_ci for the two cases that broke it.
+    # effective_n is reported, never decisive: as a gate it reacts to how a number
+    # is written rather than what it means (see features.bootstrap_ci).
     eff = min(features.effective_n(a), features.effective_n(b))
     r = statistics.correlation(a, b)
     gate_r = abs(r) >= TREND_MIN_R
@@ -1157,10 +1091,8 @@ def mental_correlates(con, **_) -> tuple[dict, str]:
     Read-only by design: described, never fed back into a score (see the module
     docstring).
     """
-    # The UI used a 1-10 scale until 2026-05-28; those 11 entries are not
-    # comparable with the 1-5 ones and averaging the two scales together shifts
-    # every correlation here. mental_predictor owns the bounds and already drops
-    # them, so they are imported rather than restated.
+    # Legacy 1-10 entries aren't comparable with the 1-5 scale. mental_predictor
+    # owns the bounds and drops them, so they are imported rather than restated.
     from acta.insights.ml.mental_predictor import CAP, FLOOR
     rows = con.execute(
         "SELECT ts, value FROM user_log WHERE kind='mental_state' AND value IS NOT NULL "
@@ -1249,9 +1181,8 @@ _NIGHT_ATTRS = [("asleep_min", "minutes asleep", True), ("waso_min", "WASO", Tru
 def night_ranking(con, month: str = None, worst_n: int = 3, **_) -> tuple[dict, str]:
     """The worst nights of a month, ranked here rather than by the model.
 
-    The spike got this wrong by eye -- asked for the three worst it returned the
-    first, second and *fourth*, skipping one. Ranking is arithmetic, so it is
-    done in Python and handed over as a decided fact. The "what did they have in
+    Ranking is arithmetic, so it is done in Python and handed over as a decided
+    fact. The "what did they have in
     common" part is computed too: an attribute counts as shared only if all
     three nights sit in the same tail of that month's distribution.
     """
@@ -1572,10 +1503,8 @@ def day_start_ms(now: datetime.datetime = None) -> int:
     boundary the rest of Acta already uses: sleep_score.night_of IS the wake
     date, and biocharge's day grid is built from the device's own midnight.
 
-    Order matters in the fallbacks. If tonight has not been scored yet -- which
-    is exactly the situation at 00:30 -- yesterday's wake time is the right
-    anchor, because the day has not actually rolled over yet. Falling straight
-    to midnight there would reintroduce the bug this function exists to avoid.
+    Order matters in the fallbacks: if tonight has not been scored yet (e.g. at
+    00:30), yesterday's wake time is the right anchor, not midnight.
     """
     now = now or datetime.datetime.now(TZ)
     today = now.date()

@@ -1,14 +1,14 @@
 """Spending ledger on top of finance_tx.
 
 A purchase is a `finance_tx` row. Nothing new is stored about balances: a
-purchase still only *proposes* an expected balance (status `pending`) until I
-confirm the real one (`applied`), exactly as before. This module adds
+purchase only *proposes* an expected balance (status `pending`) until the real
+one is confirmed (`applied`). This module adds
 what a ledger needs on top of that: a category, a source (where the entry came
 from), a note, and the queries that turn rows into a month view.
 
 Rules the queries encode:
   * The ledger is every non-dismissed row that is not a transfer leg. Transfers
-    between my own accounts are not spending.
+    between your own accounts are not spending.
   * Spending is the net of purchases and refunds: a negative amount is spend; a
     positive amount that carries a category is a refund and lowers that
     category; a positive amount with no category is income and is not counted.

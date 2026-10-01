@@ -6,22 +6,12 @@ Each feature dict is keyed by night_of (YYYY-MM-DD = wake date). "Evening"
 features (bio_2200, mental_evening, alcohol, workout) refer to the evening
 BEFORE that wake date — the conditions leading into the night.
 
-Two mental-state features, because the logging does not match the original
-assumption
------------------------------------------------------------------------------
-`mental_evening` was the only one for a long time, and it keeps entries logged
-from 17:00 onward, attributing them to the night they precede. That is the right
-reading of an evening rating — but ratings are mostly logged between 08:00 and 12:00,
-so it matched 19 of 100 entries and silently dropped the other 81. The effect
-was invisible rather than loud: `mental_evening` fell under lag_mining's n>=20
-gate and so never appeared in a single finding, and presleep_clusters excluded
-it outright as "too sparse". The data was there the whole time.
-
-So there are now two, with different meanings, and neither discards anything:
+Two mental-state features, with different meanings
+--------------------------------------------------
 
   mental_evening — mean of entries from 17:00 on, attributed to the night that
-                   FOLLOWS. State going into a night; a predictor of it. Still
-                   sparse, because he rarely logs in the evening.
+                   FOLLOWS. State going into a night; a predictor of it. Sparse,
+                   since most entries are logged in the morning.
   mental_day     — mean of every entry logged on a date, attributed to the night
                    that ended THAT MORNING (night_of == the log date). How the
                    day went after a night; an outcome of it, not a predictor.
@@ -44,10 +34,8 @@ import statistics
 from acta import config
 from acta.insights.ml.mental_predictor import CAP as MENTAL_CAP
 
-# The 1-10 scale the "How I Feel" UI used until 2026-05-28 left 11 entries that
-# are not comparable with the 1-5 ones. mental_predictor already drops them and
-# owns the bounds, so they are imported rather than restated -- two copies of a
-# scale boundary is exactly how they drift apart.
+# Legacy 1-10 entries aren't comparable with the 1-5 scale. mental_predictor
+# drops them and owns the bounds, so they are imported rather than restated.
 from acta.insights.ml.mental_predictor import FLOOR as MENTAL_FLOOR
 
 TZ = config.TZ
@@ -80,11 +68,9 @@ def effective_n(values):
     """How many observations actually carry information: the count minus the
     size of the single most common value.
 
-    A correlation's n is normally the number of paired rows, which is wrong for
-    the sparse flags in here. `alcohol_prev` is 0 on 112 of 117 nights, so a
-    correlation "over 117 nights" is really carried by 5 -- and it still clears
-    an n>=20 gate, gets stamped as a finding, and reads as solid. Same for
-    `pai_high_min_prev` (non-zero on 17 nights) and `coffee_prev` (14).
+    A correlation's n is normally the number of paired rows, which overstates
+    the sparse flags in here: a flag that is 0 on almost every night is really
+    carried by the few nights it is set.
 
     Using the modal count rather than a zero-count keeps this honest for
     continuous series too, where the mode repeats a handful of times at most and
@@ -105,21 +91,10 @@ def bootstrap_ci(xs, ys, *, B=1000, seed=0, alpha=0.05):
     Resample the pairs with replacement B times, recompute r each time, and take
     the middle 1-alpha of the results.
 
-    It fixes the two ways the counted proxy misled:
-
-      * It does not care how a number is written. `pai_high_min_prev` (whole
-        minutes, exactly 0 on 100 of 117 days) scored effective_n 17 while
-        `pai_prev` (two decimals, r=+0.96 with it -- the same signal) scored
-        114. Their bootstrap intervals are [-0.37,-0.10] and [-0.43,-0.16]:
-        nearly identical, as they should be.
-      * It does not punish a value for being common. c_regularity sits at its
-        20.0 ceiling on 36 of 52 nights, which is a real and frequent
-        measurement rather than padding; effective_n called that 16 and refused
-        to test it.
-
-    And a sparse flag still fails, for the true reason: alcohol_prev is set on 5
-    nights, so resampling swings the correlation wildly and the interval spans
-    zero.
+    Unlike effective_n it doesn't care how a number is written, and doesn't
+    punish a value for being common (e.g. a score at its ceiling). A sparse flag
+    still fails, for the true reason: resampling swings its correlation wildly
+    and the interval spans zero.
 
     Deterministic by design. `seed` is derived by callers from the pair being
     tested, so a finding cannot blink in and out between two runs of the same
@@ -216,9 +191,7 @@ def build():
                 nxt = (t.date() + datetime.timedelta(days=1)).isoformat()
                 if nxt in feats:
                     feats[nxt].setdefault("_mental_eve", []).append(r["value"])
-        # sleep_rating / body_energy are deliberately not read: logging stopped
-        # 2026-07-04 and the columns were removed from the API on 2026-08-29.
-        # The 39 historical rows stay in user_log; nothing consumes them.
+        # sleep_rating / body_energy are deliberately not read (subjective, no longer logged).
 
     for f in feats.values():
         ms = f.pop("_mental_eve", None)
@@ -254,11 +227,9 @@ def build():
 
     # PAI: objective training load for the day before the night.
     #
-    # `workout_prev_day` above depends on the user having logged something, and
-    # measured against PAI that flag misses ~91% of real sessions (21 of 23) --
-    # so any correlation involving it has been mining a mostly-empty column.
-    # These come from the strap's own zone accounting instead: no logging
-    # required, available for every day in history.
+    # `workout_prev_day` above depends on the user having logged something and
+    # misses most real sessions. These come from the strap's own zone accounting
+    # instead: no logging required, available for every day in history.
     try:
         from acta.engine import pai as _pai
         _gb = _pai.open_gb()

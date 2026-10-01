@@ -92,12 +92,9 @@ def pai_confirm(det_id: int, body: PaiConfirm, bg: BackgroundTasks):
         intensity = body.intensity or row["intensity"]
         dt_str = f"{row['date']} {pai.fmt_clock(row['start_min'])}"
 
-        # Write the event FIRST, synchronously. It is a fast locked append; the
-        # slow part is the recompute, which is what belongs in the background.
-        # Marking the row confirmed before the event existed meant a failure in
-        # the background task (torn read, subprocess timeout) left the detection
-        # resolved with nothing written -- silently lost, and scan() would never
-        # re-propose it because (date, start_min) was already known.
+        # Write the event FIRST, synchronously (a fast locked append); only the slow
+        # recompute goes to the background. Marking the row confirmed first would let a
+        # background failure lose the session, since scan() never re-proposes a known one.
         write_event_only(dt_str, dur, kind, intensity, "pai", body.activity)
 
         con.execute(
@@ -120,8 +117,7 @@ def pai_history(limit: int = Query(default=100, ge=1, le=500)):
 
     Confirmed sessions otherwise have no surface anywhere: they leave the badge
     and live only in events.json, which nothing renders. Dismissed ones are
-    listed separately so a mistaken dismiss can be undone -- before this the
-    only way back was SQL.
+    listed separately so a mistaken dismiss can be undone.
     """
     con = pai.open_acta()
     try:
@@ -172,9 +168,7 @@ def pai_load(days: int = Query(default=14, ge=7, le=90)):
 
     PAI_TOTAL is a trailing 7-day sum against Huami's target of 100. It is
     reported here for display only and deliberately feeds no score: it drops
-    off a cliff when a big day ages out of the window (2026-08-14: 81.2 ->
-    08-15: 10.4) with nothing physiological behind the fall, so a score reading
-    it would crater for a purely calendar reason.
+    sharply when a big day ages out of the window, for a purely calendar reason.
     """
     gb = pai.open_gb()
     try:

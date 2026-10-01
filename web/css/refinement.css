@@ -1,4 +1,6 @@
-/* ---------- refinement layer (from the design mockup) ---------- */
+/* ---------- refinement layer ----------
+   Component details ported from the design mockup: same tokens and measurements,
+   production class names kept. */
 /* main: weather becomes a full-width strip; the left stack stretches so both columns end together */
 .grid.main-body > .weather-strip { grid-column: 1 / -1; grid-row: 3; }
 .weather-strip .panel-body { display: grid; grid-template-columns: 1fr 1fr; padding: 0; }
@@ -47,8 +49,7 @@
 .comp-why .sign.n { color: var(--danger); }
 
 /* ============================================================================
-   Component details ported from the design mockup (Main screen and shared shell).
-   Same tokens, same measurements as the mockup; production class names kept.
+   Main screen and shared shell.
    ========================================================================== */
 :root {
   --r-card: 14px; --r-ctl: 10px; --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -254,7 +255,7 @@ body { background-image: none; }
   .panel-head { padding: 0 16px; }
   .panel-body { padding: 16px; }
   #task-list { padding: 0; }
-  /* weather: two columns side by side, as in the mockup */
+  /* weather: two columns side by side */
   .weather-strip .panel-body { grid-template-columns: 1fr 1fr; }
   .weather-strip .weather-loc { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 12px; padding: 16px; }
   .weather-strip .weather-loc + .weather-loc { border-left: 1px solid var(--line); border-top: 0; }
@@ -273,7 +274,7 @@ body { background-image: none; }
 }
 
 /* ============================================================================
-   Health: shell (sub-tabs, day navigator) and the Biocharge tab, ported from the mockup.
+   Health: shell (sub-tabs, day navigator) and the Biocharge tab.
    ========================================================================== */
 #screen-health .health-wrap { padding: 20px 18px 24px; }
 #screen-health .health-head { padding: 0; margin-bottom: 16px; gap: 16px; }
@@ -319,7 +320,7 @@ body { background-image: none; }
 
 /* ---------- Biocharge tab ---------- */
 /* The ring card and the Snapshot card are held to a readable width and the energy chart takes the rest
-   (it used to be 3fr / 6fr / 3fr, which left the ring floating in a card twice its size on a wide window). */
+   so the ring doesn't float in an oversized card on a wide window. */
 @media (min-width: 1100px) {
   .hsub-panel[data-hsub-panel="biocharge"] > .grid { grid-template-columns: clamp(240px, 20.5%, 360px) minmax(0, 1fr) clamp(280px, 22.8%, 400px) !important; gap: 16px !important; }
 }
@@ -444,7 +445,7 @@ body { background-image: none; }
 .mini-legend > span[style*="margin-left:auto"] { margin-left: 0 !important; }
 
 /* ============================================================================
-   Health → Sleep tab, ported from the mockup.
+   Health → Sleep tab.
    ========================================================================== */
 .sleep-row1 { grid-template-columns: 296px minmax(0, 1fr); border: 1px solid var(--line); border-bottom: 0; border-radius: var(--r-card) var(--r-card) 0 0; background: var(--panel); background-image: none; }
 .sleep-metrics-panel { border: 1px solid var(--line); border-radius: 0 0 var(--r-card) var(--r-card); }
@@ -487,7 +488,7 @@ body { background-image: none; }
 .sleep-row3 .mini-chart { height: 200px; touch-action: pan-y; }
 
 @media (max-width: 700px) {
-  /* stacked, as in the mockup: ring centred, then the night's facts */
+  /* stacked: ring centred, then the night's facts */
   .sleep-score-card { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 8px 20px 24px; gap: 16px; }
   .sleep-score-card .score-ring-wrap { grid-column: auto; grid-row: auto; width: 152px; height: 152px; margin: 0 auto; }
   .sleep-score-card .score-num { font-size: 2.75rem; }
@@ -511,7 +512,7 @@ body { background-image: none; }
 #sleep-reg-lbl { margin-left: auto; }
 
 /* ============================================================================
-   Health → Vitals tab, ported from the mockup.
+   Health → Vitals tab.
    ========================================================================== */
 .recovery-banner { border-radius: var(--r-card); }
 .vitals-now { border: 1px solid var(--line); border-radius: var(--r-card); background-color: var(--panel); background-image: none; }
@@ -552,7 +553,7 @@ body { background-image: none; }
 }
 
 /* ============================================================================
-   Health → Food tab, ported from the mockup.
+   Health → Food tab.
    ========================================================================== */
 .food-hero .panel-head > span:first-child { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--ink); }
 .food-hero .panel-head .meta { font-size: 12px; font-weight: 500; color: var(--ink-3); }
@@ -602,7 +603,7 @@ body { background-image: none; }
 .mcol-foot { padding: 10px 14px; font-family: var(--sans); font-size: 12px; color: var(--ink-2); }
 .mcol-foot b { font-weight: 500; }
 
-/* energy out and weight cards: body padding now that the card is header + body */
+/* energy out and weight cards: body padding for the header + body cards */
 .cal-panel .cal-body, .weight-panel .wt-body { margin: 0; padding: 20px; }
 .cal-panel .cal-body { gap: 32px; }
 .cal-big { font-size: 2.75rem; letter-spacing: -0.01em; }
@@ -621,7 +622,7 @@ body { background-image: none; }
 }
 
 /* ============================================================================
-   Health → Mental tab, ported from the mockup.
+   Health → Mental tab.
    ========================================================================== */
 .mental-log { padding: 0; margin-bottom: 16px; border: 1px solid var(--line); border-radius: var(--r-card); background-image: none; background-color: var(--panel); }
 .mental-log-head { min-height: 48px; margin: 0; padding: 0 20px; align-items: center; border-bottom: 1px solid var(--line); }
@@ -656,7 +657,7 @@ body { background-image: none; }
 .ml-word { color: var(--accent); font-weight: 500; }
 
 /* ============================================================================
-   Productivity, Finance and Auspex: page gutters, controls and gate, ported from the mockup.
+   Productivity, Finance and Auspex: page gutters, controls and gate.
    ========================================================================== */
 @media (min-width: 701px) {
   #screen-productivity, #screen-finance { padding: 20px 18px 24px; }
@@ -667,7 +668,7 @@ body { background-image: none; }
 #focus-total-big { font-size: 2.25rem; line-height: 1; font-weight: 300; letter-spacing: -0.01em; }
 #focus-total-big .unit { font-size: 13px; font-weight: 500; color: var(--ink-3); margin-left: 3px; }
 
-/* Finance: sub-tabs as the segmented pill, gate as in the mockup */
+/* Finance: sub-tabs as the segmented pill, plus the gate */
 @media (min-width: 701px) {
   .fin-subtabs { display: inline-flex; gap: 2px; padding: 4px; margin: 0 0 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; }
   .fin-subtab { height: 36px; padding: 0 16px; border: 0; border-radius: 999px; font-size: 13px; letter-spacing: 0; color: var(--ink-2); }
@@ -693,8 +694,7 @@ body { background-image: none; }
 
 /* ============================================================================
    Finance: Spending (the ledger of every purchase) and its add / edit sheet.
-   Ported from the mockup's Spending tab. Every class is prefixed sx- so nothing
-   here can collide with the rest of the dashboard.
+   Every class is prefixed sx- so nothing here can collide with the rest of the dashboard.
    ========================================================================== */
 .sx { display: grid; gap: 16px; }
 .sx button { font-family: inherit; }
@@ -920,26 +920,21 @@ body { background-image: none; }
 .inv-watchlist .inv-rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); column-gap: 20px; }
 .inv-watchlist .inv-rows > .fin-empty { grid-column: 1 / -1; }
 .inv-watchlist .wl-row { min-width: 0; padding: 8px 0; }
-.inv-watchlist .wl-row:last-child { border-bottom: 1px solid var(--line); }   /* rows now sit in a grid: every row keeps its rule */
+.inv-watchlist .wl-row:last-child { border-bottom: 1px solid var(--line); }   /* rows sit in a grid: every row keeps its rule */
 .inv-watchlist .wl-row > div:first-child { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .inv-watchlist .wl-row .sym { flex: none; }
 .inv-watchlist .wl-row .nm { margin-top: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 900px) {
-  /* one column: flatten both stacks so Watching can go back below Holdings, as it always was on a phone */
+  /* one column: flatten both stacks so Watching sits below Holdings */
   .fin-cols > .inv-col { display: contents; }
   .inv-watchlist { order: 9; }
 }
 
 /* ============================================================================
-   Workout: the top band (readiness | session | stats), from my drawing (2026-09-21), then calmed down
-   the same day after I found the first build too big and top-heavy ("option B").
-   The base rules below repeat the values that used to be inline styles in workout.js, so phone, tablet and
-   narrow laptops look exactly as before. From 1280px up the three cells are re-proportioned (about 35 / 36 /
-   29 %), the readiness bars are a 2x2 grid, the variant chips fit on one row, Start training sits beside the
-   session timer, and every cell keeps its content on a shared top and bottom edge: the pain flag sits at the
-   foot of the readiness cell, the Start row at the foot of the session cell. Type stays close to the rest of
-   the page (title 24px, Start button 46px tall). The day name moves into the subtitle line and Change sits on
-   the title row.
+   Workout: the top band (readiness | session | stats). The base rules keep phone, tablet and narrow
+   laptops unchanged. From 1280px up the cells are about 35 / 36 / 29 %, the readiness bars form a 2x2
+   grid, Start training sits beside the session timer, and each cell's content shares a top and bottom
+   edge (pain flag and Start row at the foot). The day name moves into the subtitle line.
    ========================================================================== */
 .wk-rd-main { display: flex; align-items: center; gap: 16px; }
 .wk-rd-score { text-align: center; }

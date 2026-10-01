@@ -281,7 +281,7 @@ def soreness_day_start_ms(now: datetime.datetime) -> int:
     """Start of the current soreness day.
 
     Soreness is a same-day self-report, not a DOMS decay curve: what was flagged
-    yesterday must not still be showing today (2026-07-25). The boundary is the
+    yesterday must not still be showing today. The boundary is the
     most recent wake-up rather than local midnight, because a bedtime after 00:00
     means a plain midnight cutoff would wipe an entry logged minutes earlier.
     Falls back to local midnight when the night hasn't synced yet."""

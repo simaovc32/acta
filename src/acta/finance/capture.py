@@ -18,7 +18,7 @@ Anything else is a ledger entry only, and the reply says why. Groceries and
 shopping never touch the food log, whatever the wording.
 
 Pure database logic: takes an open sqlite connection so it can be tested against a
-throwaway database. Events.json and ingest are handled by api.py.
+throwaway database. Events.json and ingest are handled by api/routers/capture.py.
 """
 import datetime
 import hashlib

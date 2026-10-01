@@ -65,9 +65,8 @@ def _load_env() -> None:
 UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
                     "(KHTML, like Gecko) Chrome/122.0 Safari/537.36"}
 TIMEOUT = 12
-# Yahoo rate-limits per IP and returns 429 on even a light burst — four symbols
-# back to back was enough to trip it during development. Once a day for a
-# handful of symbols there is no reason to hurry.
+# Yahoo rate-limits per IP and returns 429 on even a light burst; once a day
+# for a handful of symbols there is no reason to hurry.
 PAUSE   = 1.2
 RETRIES = 3
 
@@ -103,9 +102,7 @@ def _get_json(url: str, *, data: bytes = None, headers: dict = None) -> dict:
 
 # ── sources ───────────────────────────────────────────────────────────────────
 
-# Yahoo throttles per host, not per account — query2 answered normally while
-# query1 was returning 429 during development, so rotating hosts buys a second
-# chance for free before any backoff is needed.
+# Yahoo throttles per host, so rotating hosts buys a second chance before backoff.
 YAHOO_HOSTS = ("https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com")
 
 
@@ -336,12 +333,9 @@ _fx_cache: dict = {}
 def fx_to_eur(currency: str) -> tuple[float, str]:
     """Rate to convert `currency` into EUR, plus where it came from.
 
-    A market rate first, ECB's daily reference second — and the order matters
-    more than it looks. Measured against a real broker statement on 2026-08-09, every one
-    of 13 USD positions priced ~0.75% high with the ECB reference rate, uniformly
-    enough that it could only be the rate rather than the prices. The reference
-    rate is fixed at 16:00 CET while US markets close at 22:00, and a broker adds
-    its own conversion spread; a market rate closes most of that gap.
+    A market rate first, ECB's daily reference second: the reference rate is
+    fixed at 16:00 CET while US markets close at 22:00, so it prices USD
+    positions measurably off; a market rate closes most of that gap.
     """
     cur = (currency or "EUR").upper()
     if cur == "EUR":
@@ -392,8 +386,7 @@ def quote_eur(feed_symbol: str, store_symbol: str = None, *,
 
     The symbols are not interchangeable and each source needs its own: Twelve
     Data and Yahoo want the exchange-qualified ticker, CoinGecko wants the bare
-    coin ("BTC"), justETF wants the ISIN. Passing the wrong one to a source is
-    why the crypto fallback once silently could not resolve BTC-EUR.
+    coin ("BTC"), justETF wants the ISIN.
 
     Source order is by how strong a fact each answer is, not by convenience:
 
@@ -401,11 +394,9 @@ def quote_eur(feed_symbol: str, store_symbol: str = None, *,
       ETF     justETF (EUR-native, by ISIN)      -> Twelve Data -> Yahoo -> web
       stock   Twelve Data (keyed, structured)    -> Yahoo -> web
 
-    Yahoo sits second-to-last rather than first (where it used to be) because it
-    now returns 429 to this host on every request; it is kept only in case that
-    block ever lifts. Web search is last everywhere — a figure parsed out of
-    prose has no currency field of its own, and mislabelling a USD quote as EUR
-    is exactly how ASML was booked 13% high on 2026-08-09.
+    Yahoo sits second-to-last because it returns 429 to this host; it is kept in
+    case that lifts. Web search is last everywhere: a figure parsed out of prose
+    has no currency field, so a USD quote can be mislabelled as EUR.
     """
     store_symbol = store_symbol or feed_symbol
     attempts = []
@@ -498,17 +489,9 @@ def refresh(con, *, as_of: str = None, dry_run: bool = False,
                         native_currency=q["native_currency"],
                         fx_rate=q["fx_rate"], fx_source=q.get("fx_source"),
                         source=q["source"])
-            # Commit per-symbol rather than once at the end of the whole
-            # loop: each price is independent (keyed on symbol+date, no
-            # cross-symbol invariant to protect), and this loop runs for
-            # minutes under Twelve Data's rate-limit pacing. A single
-            # end-of-loop commit held the write lock for that whole
-            # duration, which collided with acta-ingest.timer's own writes
-            # and produced real "database is locked" failures on both sides
-            # (confirmed live, 2026-09-16) — WAL mode and a longer
-            # busy_timeout elsewhere only widen the window that has to be
-            # waited out, they don't shrink it. Committing per symbol drops
-            # the lock-hold time from ~minutes to milliseconds.
+            # Commit per symbol, not once at the end: prices are independent, and this
+            # loop runs for minutes under Twelve Data's pacing, so one end-of-loop commit
+            # would hold the write lock long enough to collide with ingest ("database is locked").
             con.commit()
         time.sleep(PAUSE)
 

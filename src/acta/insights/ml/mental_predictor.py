@@ -11,12 +11,8 @@ that were NOT under caffeine. Features per entry:
   intercept, hours_since_wake, hours_since_wake², sleep_score (centered)
 Target: mental_state (1–5).
 
-Entries logged while caffeine was active are held out of baseline training.
-Training on them baked the coffee lift into the baseline and then
-caffeine_bump() added it a second time — double-counting. Because coffee is
-habitually taken ~11:00, the contaminated baseline predicted "sharp" every
-early afternoon regardless of whether a coffee was actually logged. (Fixed
-2026-08-12; R² 0.02 → 0.25.)
+Entries logged while caffeine was active are held out of baseline training, so
+caffeine_bump() doesn't count the coffee lift a second time.
 
 CAFFEINE_BUMP — a separate additive module. Each logged coffee adds a decaying
 lift that peaks ~40 min after intake and fades over ~3h. A cortisol-trough
@@ -61,8 +57,8 @@ def _load_events() -> list:
 def _tz_intervals(con) -> list:
     """(start_ms, utc_offset_min) per night, from sleep_score.
 
-    A local copy of api.tz_intervals() — api imports THIS module, so importing it
-    back would be circular. Same source of truth (sleep_score.tz_offset_min) and
+    A local copy of acta.api.days.tz_intervals() — the API imports THIS module,
+    so importing it back would be circular. Same source of truth (sleep_score.tz_offset_min) and
     same carry-forward rule; if the two ever need to diverge, that is a bug.
     """
     try:
@@ -92,10 +88,9 @@ def _device_tz(ts_ms: int, intervals: list):
 def _coffee_ms(events: list, intervals: list = None) -> list:
     """Return coffee-event timestamps in ms.
 
-    Resolved against the zone the device was on that day, not against Lisbon:
-    the stored string is bare wall clock, so pinning it to home put a coffee
-    logged abroad an hour off, which moved the whole caffeine window and taught
-    the model a lift that started at the wrong time.
+    Resolved against the zone the device was on that day, not the home zone:
+    the stored string is bare wall clock, so a coffee logged abroad would
+    otherwise shift the caffeine window.
     """
     intervals = intervals or []
     out = []
@@ -152,9 +147,8 @@ def caffeine_bump(t_ms: int, coffee_ms: list, waketime_ts: int, learned_coef=Non
 def _build_dataset(con, coffee_ms: list):
     """Split mental_state entries into clean (baseline training) and caffeinated.
 
-    Values outside FLOOR..CAP are legacy entries from when the UI used a 1–10
-    scale (2026-05-26 → 05-28) and are dropped from both sets — left in, they
-    flattened the fit to R²≈0.02.
+    Values outside FLOOR..CAP are legacy entries from a 1–10 scale and are
+    dropped from both sets.
     """
     rows = con.execute(
         "SELECT ts, value FROM user_log WHERE kind = 'mental_state' ORDER BY ts"

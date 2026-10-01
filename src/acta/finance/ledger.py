@@ -1,9 +1,9 @@
-"""finance_lib — shared read-only helpers for the subscriptions schedule.
+"""ledger — shared read-only helpers for the subscriptions schedule.
 
-Single source for "which calendar date does a sub land on" so api.py (CRUD +
-projections), sensors.py (digest reminders) and monthly_report.py (monthly
-section) can't drift into disagreeing about it. Schema ownership (CREATE
-TABLE) stays in api.py's init_finance_tables() — this module only reads.
+Single source for "which calendar date does a sub land on", so the finance API
+(CRUD + projections) and monthly_report.py can't drift into disagreeing about
+it. Schema ownership (CREATE TABLE) stays in api/schema.py's
+init_finance_tables() — this module only reads.
 """
 import calendar
 import datetime
@@ -106,7 +106,7 @@ def account_events_between(account_id: int, start: datetime.date, end: datetime.
 
 def monthly_totals(con: sqlite3.Connection = None) -> dict:
     """Sum of active subs by direction, assuming the standard monthly cadence
-    (each sub lands once per calendar month) — no cadence field in phase 2."""
+    (each sub lands once per calendar month); there is no cadence field."""
     subs = active_subs(con)
     out_total = sum(s["amount"] for s in subs if s["direction"] == "out")
     in_total = sum(s["amount"] for s in subs if s["direction"] == "in")

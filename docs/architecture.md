@@ -42,7 +42,7 @@ gates, cheapest first:
 3. **Recompute:** load every sleep session (keeping the longest version of each night,
    since a night is re-synced several times), score the new nights plus the last two, then
    replay biocharge forward from the last settled day. After that come the non-fatal leaf
-   steps: night physiology, calories, PAI detection, VO₂max.
+   steps: night physiology, calories, PAI detection, VO₂max, illness fingerprint.
 
 A failed run is recorded in `ingest_run` with its error before it re-raises. A pipeline
 that fails silently looks healthy on the dashboard, which is worse than one that fails

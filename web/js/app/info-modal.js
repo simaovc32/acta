@@ -27,13 +27,9 @@
   let pendingNew   = null;   // estimate awaiting confirmation
 
   // ── Which meal ────────────────────────────────────────────────────────────
-  // Mirrors nutrition.SLOT_WINDOWS / slot_for_time() exactly. It has to: the
-  // picker's default must be the slot the server would have picked anyway, or
-  // merely opening the sheet would move where a meal lands. The 5 real windows
-  // are deliberately not contiguous — a time in one of the gaps between them
-  // (mid-morning, mid-afternoon, the evening lull, the whole night) is not any
-  // of those meals, so it auto-picks the honest "off_hours" bucket instead of
-  // being forced into whichever real meal happens to be nearest.
+  // Must mirror nutrition.SLOT_WINDOWS / slot_for_time() exactly, so the picker's
+  // default is the slot the server would pick. The windows are deliberately not
+  // contiguous: a time in a gap goes to "off_hours", not the nearest meal.
   const SLOT_WINDOWS = [['breakfast', 360, 570], ['morning_snack', 600, 690],
                         ['lunch', 720, 870], ['afternoon_snack', 960, 1080],
                         ['dinner', 1170, 1320]];
@@ -188,9 +184,7 @@
 
   function renderResults(q) {
     const nq = q.trim().toLowerCase();
-    // Nothing until you type. Listing the library by default made the sheet
-    // grow with every new food logged, for a list the pinned buttons above
-    // already cover for anything eaten often.
+    // Nothing until you type; the pinned buttons above cover frequent foods.
     if (!nq) {
       foodResults.innerHTML =
         '<div class="fe-empty">Type to search your foods, or describe a new one.</div>';
@@ -268,8 +262,7 @@
       pin.disabled = false;
       return;
     }
-    // The × forgets the saved dish; it must never also log it. This is the only
-    // way to delete one now that the button row is gone, so it has to be here.
+    // The × forgets the saved dish (the only way to delete one); it must never also log it.
     const delMeal = e.target.closest('[data-delmeal]');
     if (delMeal) {
       e.stopPropagation();
@@ -318,12 +311,8 @@
   });
 
   // ── How much ──────────────────────────────────────────────────────────────
-  // This replaced a window.prompt asking for grams. Two things were wrong with
-  // it: on the phone PWA it is a system dialog thrown over the sheet, and "how
-  // many grams?" is not a question you can answer looking at a plate. The
-  // library already stores the typical serving and what it is called, so the
-  // amount is asked in servings — with the grams shown, editable, and never
-  // hidden, because portion is still the dominant error in the estimate.
+  // Amount is asked in servings (the library's typical serving), with grams shown
+  // and editable, because portion is the dominant error in the estimate.
   const MULTS = [[0.5, '½'], [1, '1'], [1.5, '1½'], [2, '2']];
 
   function closeAmount() {
@@ -489,9 +478,7 @@
   document.getElementById('fn-cancel').addEventListener('click', hideNewCard);
 
   // ── Multi-component meals ─────────────────────────────────────────────────
-  // "Frango com arroz" is not a food, it is a ratio: 150 g rice + 50 g chicken
-  // and the reverse are 13% apart in calories but 2.4x apart in protein. So a
-  // dish whose parts are plated independently is logged as one row per
+  // A dish whose parts are plated independently is logged as one row per
   // ingredient, each with its own grams.
   const mcBox  = document.getElementById('meal-card');
   const mcRows = document.getElementById('mc-rows');
@@ -618,11 +605,8 @@
   });
 
   // ── Saved meals ───────────────────────────────────────────────────────────
-  // Saved dishes are not listed in the sheet. They used to sit in a row of
-  // buttons, which grew with every dish saved — the same unbounded growth that
-  // took the day's log list and the default library listing out of here. They
-  // live in the search box instead: type the dish name, tap it, the whole plate
-  // is logged. Nothing about the stored dish changes, only where you reach it.
+  // Saved dishes are reached through search, not listed in the sheet: type the
+  // dish name, tap it, and the whole plate is logged.
   let mealsCache = [];
 
   async function loadMeals() {
@@ -813,7 +797,7 @@
   // ── body map ──────────────────────────────────────────────────────────────
   // Areas are drawn as plain SVG shapes; each carries data-area (slug sent to
   // the API) and data-sev (0-3, styled by CSS). Slugs for the eight joints match
-  // the older finish-screen pain chips so both write the same vocabulary.
+  // workout.js's PAIN_AREAS (finish-screen pain chips) so both write the same vocabulary.
   const SORE_LABELS = {
     neck: 'Neck', traps: 'Traps', shoulder: 'Shoulders', chest: 'Chest',
     lats: 'Lats', 'mid-back': 'Mid back', 'lower-back': 'Lower back',

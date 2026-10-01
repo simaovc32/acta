@@ -1,4 +1,4 @@
-"""Workouts as markers on the biocharge chart (2026-09-21).
+"""Workouts as markers on the biocharge chart.
 
 The chart shows each logged workout as a gold band with an icon, so it has to know which day a workout
 belongs to, when it started and ended, and what it was. Workouts already live in events.json (they feed
@@ -7,9 +7,8 @@ biocharge); this module only *reads* them and names them. Nothing here writes or
 Two pure helpers, both covered by test_activities.py:
 
   guided_kind(title)      what a session finished in the Workout tab was (strength / run / bike), from its
-                          title ("<day type> . <variant>", e.g. "Upper Body Pull . Gym", "Steady run . Bike").
-                          POST /api/workout/session used to log every session as strength, so a run or a bike
-                          ride done in the app would have shown a dumbbell and been priced as strength.
+                          title ("<day type> . <variant>", e.g. "Upper Body Pull . Gym", "Steady run . Bike"),
+                          so a run or a bike ride done in the app isn't shown or priced as strength.
   day_activities(...)     the workouts overlapping one device-local day, newest windows merged, each with an
                           icon key and a display name for the chart.
 """

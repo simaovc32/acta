@@ -1,24 +1,13 @@
-/* Both faces are self-hosted: this is an installed PWA expected to open
-   offline, and the service worker can only cache files served from this
-   origin. A Google Fonts <link> points at fonts.gstatic.com, which the SW
-   cannot cache, so with no network that font silently never arrives and every
-   rule using it falls back to a system face. Geist was self-hosted for this
-   reason on 2026-08-04; JetBrains Mono was left behind and followed on
-   2026-08-11 — it drives ~260 rules (every label, unit and metadata row), so
-   losing it offline was the more visible of the two.
-
-   Inter is deliberately NOT hosted: it appears only as a fallback *behind*
-   Geist in --sans/--serif/--num, so it never renders while Geist loads, and
-   fetching it was pure cost. */
+/* Both faces are self-hosted so the installed PWA works offline: the service
+   worker can only cache same-origin files, not fonts.gstatic.com. Inter is only
+   a fallback behind Geist in --sans/--serif/--num, so it is not hosted. */
 @font-face { font-family: Geist; font-weight: 300; font-display: swap; src: url(/fonts/geist-300.woff2) format("woff2"); }
 @font-face { font-family: Geist; font-weight: 400; font-display: swap; src: url(/fonts/geist-400.woff2) format("woff2"); }
 @font-face { font-family: Geist; font-weight: 500; font-display: swap; src: url(/fonts/geist-500.woff2) format("woff2"); }
 @font-face { font-family: Geist; font-weight: 600; font-display: swap; src: url(/fonts/geist-600.woff2) format("woff2"); }
 
-/* One variable file per subset, not one per weight: Google serves a single
-   wght 100-800 font for all three weights we asked for (the three downloads
-   were byte-identical). Declaring the axis range lets 300/400/500 all resolve
-   from it, so this is 2 files instead of 6 and the weights still differ. */
+/* One variable file per subset, not one per weight: declaring the wght axis
+   range lets 300/400/500 all resolve from it (2 files instead of 6). */
 @font-face {
   font-family: "JetBrains Mono"; font-style: normal; font-weight: 100 800;
   font-display: swap; src: url(/fonts/jetbrains-mono-latin.woff2) format("woff2");
@@ -196,10 +185,7 @@ body {
   letter-spacing:0.01em; margin-bottom: 6px; margin-top: 14px;
 }
 .info-modal label:first-of-type { margin-top: 0; }
-/* The 1-10 rating scale, coffee yes/no and alcohol detail rows were removed
-   from the "add info" modal in an earlier version; their CSS outlived them and
-   was deleted on 2026-08-29. Mental state is logged from the .wordscale row on
-   the Mental tab instead. */
+/* Mental state is logged from the .wordscale row on the Mental tab. */
 .info-modal input, .info-modal select {
   width: 100%; background: var(--bg-2); border: 1px solid var(--line-2);
   border-radius: 5px; color: var(--ink); font-family: var(--mono);
@@ -443,9 +429,7 @@ body {
 
 /* ---------- panel ---------- */
 /* Two tiers only. .panel is the primary surface; .panel.quiet drops the box
-   entirely and lets a rule under the title plus spacing do the work. The old
-   top-left/top-right corner ticks were removed — asymmetric decoration that
-   read as unfinished rather than deliberate. */
+   entirely and lets a rule under the title plus spacing do the work. */
 .panel {
   background: var(--panel);
   border: 1px solid var(--line-2);
@@ -1248,9 +1232,7 @@ body {
 .fin-subtab.active { color: var(--ink); border-bottom-color: var(--accent); }
 .fin-subtab:disabled { color: var(--ink-3); cursor: default; }
 
-/* Inline tab lock reuses .passcode-input/.passcode-keypad (incl. their
-   .error/.shake states) so the pad looks and behaves identically to the
-   main-card modal's — only this wrapper is new. */
+/* Inline tab lock reuses the main-card modal's .passcode-input/.passcode-keypad styles. */
 .fin-lockwrap { display: grid; justify-items: center; padding: 40px 0 10px; }
 .fin-lockwrap .passcode-input { width: 200px; }
 .fin-lockwrap .passcode-keypad { width: 230px; }
@@ -1416,16 +1398,7 @@ body {
 .fin-empty { text-align: center; padding: 30px 10px; color: var(--ink-3); font-size: 12.5px; }
 
 /* ---------- Investments sub-tab ----------
-   Donut palette: oklch(0.65 0.13 H) at hues 250/165/85/290/25, in that order.
-   Validated (not eyeballed) against this panel's surface — worst adjacent pair
-   is ΔE 10.3 protan / 16.6 normal-vision, clearing the ≥8 CVD target and the
-   ≥15 normal-vision floor. The order matters: value-ranked assignment put red
-   next to yellow, which failed the normal-vision floor at ΔE 12; purple sits
-   between them to break that pair. Steps are darker than the app's tab hues
-   (L 0.65 vs 0.78) because those sit outside the validated dark band, and a
-   darker panel only improves their contrast.
-   Six segments is the readable ceiling for part-to-whole, so the tail folds
-   into one grey "Other" — never a generated 7th hue. */
+   Donut palette is validated for colour-blind contrast in this order — don't reorder. */
 .inv-seg-1 { --seg: #4a94db; }
 .inv-seg-2 { --seg: #1ea87b; }
 .inv-seg-3 { --seg: #b3880f; }
@@ -1502,9 +1475,7 @@ body {
                 font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
 .inv-rec-hist b { color: var(--ink-3); font-weight: 400; margin-right: 4px; }
 .inv-rec .inv-cash-edit { margin-top: 12px; }
-/* The input takes the slack and the button stays its own size: .fin-btn is
-   full-width by default for the stacked card actions, which inside this flex
-   row would otherwise squeeze the field down to a truncated placeholder. */
+/* The input takes the slack; the button keeps its size (.fin-btn is full-width by default). */
 .inv-rec .inv-cash-edit input { flex: 1 1 auto; width: auto; min-width: 0; }
 .inv-rec .inv-cash-edit .fin-btn { flex: 0 0 auto; width: auto; }
 /* An editable holding row gets the same affordance as an account row. */
@@ -2697,10 +2668,7 @@ kbd {
 @media (max-width: 1100px) { .vitals-trend-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ---------- Vitals: energy out (daily calorie estimate) ----------
-   Hero number is "so far today"; the raw running total is meaningless without
-   it. Everything here is rounded to 10 kcal — the model is good to roughly
-   ±10-15% uncalibrated, so per-kcal precision would imply accuracy it hasn't
-   got. See acta/calories.py. */
+   Hero number is "so far today", rounded to 10 kcal (see src/acta/engine/calories.py). */
 .cal-panel { margin-top: 0; margin-bottom: 12px; padding-bottom: 16px; }
 .cal-body { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.05fr) auto; gap: 20px; align-items: end; margin-top: 12px; }
 .cal-hero { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
@@ -2745,9 +2713,7 @@ kbd {
   .cal-balance .fh-cell { flex-direction: column; align-items: flex-start; gap: 3px; }
 }
 
-/* ---------- Health > Food sub-tab ----------
-   Same panel grammar as every other health tab; only the accent hue differs
-   (teal 207 — the warm end of the wheel is taken by vitals/workout/mental). */
+/* ---------- Health > Food sub-tab ---------- */
 .food-hero .fh-body {
   display: grid; grid-template-columns: 132px auto minmax(240px, 1fr);
   gap: 30px; align-items: center; padding: 4px 2px 2px;
@@ -2950,8 +2916,7 @@ kbd {
 }
 .meal-add:hover { color: var(--accent); opacity: 1; }
 
-/* Row actions. Replaces a window.prompt: it is the only place a logged entry
-   can be removed now that the modal is input-only, so it has to be legible. */
+/* Row actions: the only place a logged entry can be removed, so keep it legible. */
 .row-menu {
   position: fixed; z-index: 200; min-width: 176px; max-width: min(280px, calc(100vw - 16px));
   padding: 5px;
@@ -2995,9 +2960,7 @@ kbd {
    Grams are always shown and always editable — portion size is the dominant
    error in intake logging, so it is never hidden behind a default. */
 
-/* Which meal this goes in. Defaults to the clock, same as the server would,
-   but visible and changeable: logging lunch at 16:00 is normal, and a wrong
-   slot used to cost a second trip to the Food tab to drag it. */
+/* Which meal this goes in: defaults to the clock, but stays visible and changeable. */
 .slot-pick { display: flex; flex-wrap: wrap; gap: 5px; }
 .food-time-row { display: flex; align-items: center; gap: 8px; }
 .food-time-row input[type="time"] { width: auto; flex: 0 0 auto; }
@@ -3052,10 +3015,8 @@ kbd {
 .fh-m { font-family: var(--mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; }
 .food-hit-row.picking .food-hit { border-color: var(--accent); color: var(--ink); }
 
-/* How much, asked in the unit you can actually judge. The library knows the
-   typical serving and what one serving is called, so the portion chips carry
-   the answer and grams follow — but grams stay visible and editable, because
-   portion size is the dominant error and a hidden default would bury it. */
+/* How much, asked in the unit you can judge: portion chips use the library's typical
+   serving, and grams follow (still visible and editable, see above). */
 .fh-amount {
   padding: 9px 11px; border-radius: 8px; margin: -1px 0 3px;
   background: var(--panel-2); border: 1px solid var(--accent-soft, var(--line-2));
@@ -3221,7 +3182,7 @@ kbd {
 
 /* ---------- Productivity: weekly-schedule category colours ---------- */
 /* Flat single-colour chips — one hue per category, no gradients. Matches
-   SCHEDULE_CATEGORIES in api.py; --cat is set inline by renderWeek(). */
+   SCHEDULE_CATEGORIES in api/routers/productivity.py; --cat is set inline by renderWeek(). */
 .event[data-cat] {
   background: color-mix(in oklch, var(--cat) 12%, transparent);
   border-color: color-mix(in oklch, var(--cat) 34%, transparent);

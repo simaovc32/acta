@@ -85,7 +85,7 @@ def day_midnight_ms(con, date_iso: str) -> int:
 
     Days must anchor to the zone the device was actually on, not the server's
     zone and not the viewer's — a night slept abroad otherwise lands on the
-    wrong date (the -23h bug fixed 2026-08-04).
+    wrong date.
     """
     d   = datetime.date.fromisoformat(date_iso)
     off = _day_offset_min(con, date_iso)

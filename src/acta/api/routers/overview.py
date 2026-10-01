@@ -36,9 +36,7 @@ def health_summary():
         ds = con.execute("SELECT MIN(night_of) d FROM sleep_score").fetchone()
         # "Fresh" = there is real data covering the gap between the strap/phone
         # sync and now, rather than the pipeline's last stored row from an
-        # earlier day silently being shown as if it were current (2026-09-22:
-        # a morning with no overnight export showed yesterday 23:57's biocharge
-        # level and yesterday's sleep night as if they were today's).
+        # earlier day being shown as if it were current.
         biocharge_fresh = bool(bc and bc["minute_ts"] >= today_start_ms)
         # Sleep is a once-nightly event, not a per-minute series, so "today's
         # calendar date" doesn't apply the same way — instead, is the latest

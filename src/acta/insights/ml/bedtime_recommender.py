@@ -9,15 +9,10 @@ Features per night:
 
 Target: sleep score (0–100)
 
-Feature history (2026-07-02): backtested every candidate feature via leave-one-out
-cross-validation over 65 nights. Added `bed_dev` (bedtime deviation from the trailing
-median) — the strongest single predictor (r=-0.47), because schedule regularity is 20%
-of the actual sleep score and is fully knowable at bedtime. Removed `workout_flag`
-(r=0.00, pure noise) and `drain_2h` (marginal; models without it scored better).
-Momentum features (prev_score / avg3) were tested and rejected — they hurt (sleep
-scores are not autocorrelated). Result: LOO MAE 7.6 -> 7.4, R² 0.08 -> 0.13.
-`bed_dev` also gives the recommendation curve a real sweet spot at the habitual
-bedtime instead of the old monotonic "earlier is always better".
+Features were chosen by leave-one-out cross-validation. `bed_dev` (bedtime
+deviation from the trailing median) is the strongest predictor, because schedule
+regularity is part of the sleep score and is fully knowable at bedtime; it also
+gives the recommendation curve a real sweet spot at the habitual bedtime.
 """
 
 import datetime

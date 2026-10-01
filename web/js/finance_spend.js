@@ -3,9 +3,9 @@
 // token and hands this file a small context; this file only draws the Spending
 // sub-tab and talks to /api/finance/spending and /api/finance/transaction.
 //
-// A purchase is a proposal until I confirm the real balance
-// (pending → applied). Nothing here touches a balance, and deleting only hides
-// a row (it can be restored), the same rule as the rest of Finance.
+// A purchase is a proposal until the real balance is confirmed (pending ->
+// applied). Nothing here touches a balance, and deleting only hides a row (it
+// can be restored), the same rule as the rest of Finance.
 (function () {
   'use strict';
 

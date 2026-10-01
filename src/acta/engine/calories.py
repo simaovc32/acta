@@ -3,13 +3,11 @@ Daily energy expenditure estimate — per-minute, mode-segmented.
 
 Why not one formula over the whole day
 --------------------------------------
-95% of this user's logged minutes sit below HR 100 and only 0.1% above 125, so a
-daily total is overwhelmingly made of *low-intensity* minutes. Population HR->EE
-equations (Keytel et al.) are anchored to absolute heart rate and were fitted on
-a cohort with RHR ~65-70; a fit user's can sit below 50, so the same absolute HR means
-a much lower relative effort and those equations systematically over-bill the
-band where almost all the minutes live. This is the same class of error the
-biocharge drain model already fixed on 2026-05-25 by moving to HR *reserve*.
+A daily total is overwhelmingly made of *low-intensity* minutes. Population
+HR->EE equations (Keytel et al.) are anchored to absolute heart rate and fitted
+on a cohort with higher RHR, so for a fit user the same absolute HR means a much
+lower relative effort and those equations over-bill exactly that band. Biocharge
+uses HR *reserve* for the same reason.
 
 So each minute is classified and priced by mode instead:
 
@@ -78,9 +76,8 @@ MET_STRENGTH = 5.0         # compendium: resistance training, moderate-vigorous
 # drivers (posture, heat, caffeine, stress) and the step/sedentary path is used.
 # 0.40 is where the %HRR ~ %VO2-reserve relation is established as linear
 # (Swain & Leutholtz 1997; ACSM) — below it the relation bends and HR over-reads.
-# Not a free parameter: at 0.30 this model billed HR 91 bpm at 433 kcal/h and
-# produced a 3,290 kcal median day against a 1,708 BMR (a 1.9x TDEE multiplier,
-# not credible for this user). Do not lower it to "capture more activity".
+# Not a free parameter: lowering it bills ordinary sitting HR as exercise and
+# inflates the day far past a credible TDEE. Do not lower it to "capture more activity".
 HRR_TRUST_MIN = 0.40
 
 # Afterburn. Applied to the excess-above-rest accumulated in genuinely vigorous
@@ -99,7 +96,7 @@ VO2MAX_RANGE = (25.0, 85.0)
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def load_tz_offsets(acta: sqlite3.Connection) -> None:
-    """Anchor biocharge's day grid to device-local midnight (see 2026-08-04)."""
+    """Anchor biocharge's day grid to device-local midnight."""
     rows = acta.execute(
         "SELECT night_of, tz_offset_min FROM sleep_score "
         "WHERE tz_offset_min IS NOT NULL"
@@ -344,7 +341,7 @@ CREATE TABLE IF NOT EXISTS daily_energy (
 
 # Days at the tail always get recomputed: evening activity arrives with the
 # overnight sync, so "yesterday" is still incomplete at the time it first runs.
-# Same reasoning as replay_biocharge's yesterday rule (2026-07-01).
+# Same reasoning as replay_biocharge's yesterday rule.
 REFRESH_TAIL_DAYS = 2
 
 
@@ -432,9 +429,7 @@ def activity_cost(date, start_min: int, duration_min: int, *,
 
     Reported **marginal**, not gross: the resting floor for the same minutes is
     subtracted, because those calories would have been spent lying on the sofa.
-    "That match cost 780" means 780 *on top of* doing nothing for 104 minutes —
-    which is the number worth knowing, and the one a fitness app usually
-    overstates by quoting the gross figure.
+    That is the number worth knowing; a fitness app usually quotes the gross.
 
     The day's whole minute-by-minute curve is recomputed and then sliced, rather
     than modelled separately, so a bout's number can never disagree with the day
@@ -473,18 +468,9 @@ def activity_cost(date, start_min: int, duration_min: int, *,
     counted = collections.Counter(m or "unknown" for m in modes)
     measured = sum(1 for m in modes if m in ("active", "strength", "sedentary"))
 
-    # Effort and cooldown priced apart.
-    #
-    # Heart rate stays elevated for a long time after the effort stops, while the
-    # actual energy cost has already fallen -- so charging the stretching after a
-    # run at its HR-derived rate overstates the session. Measured on 2026-08-22:
-    # 44 minutes priced as one block came to 705 kcal, where the 26 minutes of
-    # running alone are ~500.
-    #
-    # No discount factor is invented for the cooldown. The two parts are simply
-    # reported separately, and `net_kcal` -- the number that answers "what did
-    # that session cost me" -- is the effort. The cooldown is still there in
-    # cooldown_kcal for anyone who wants the whole span.
+    # Effort and cooldown priced apart: HR stays elevated after the effort stops
+    # while the energy cost has already fallen. No discount factor is invented;
+    # `net_kcal` is the effort, and the cooldown is reported in cooldown_kcal.
     w = None if work_min is None else max(0, min(len(window), int(work_min)))
     if w is not None and w < len(window):
         eff_gross = sum(window[:w]) * k

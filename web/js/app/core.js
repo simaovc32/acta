@@ -1,8 +1,7 @@
 // ============== BACK GESTURE ==============
 // Installed as a standalone PWA (see manifest.json), so there's no browser
-// chrome and — until this — no history at all: Android's back gesture had
-// nothing to act on and just exited the app, regardless of what overlay or
-// modal was open. BackStack gives every closeable layer (modals here,
+// chrome or history and Android's back gesture would just exit the app.
+// BackStack gives every closeable layer (modals here,
 // Workout tab's overlays) one pushed history entry each; a back-gesture
 // pops the topmost one and runs its close callback. On-screen close
 // controls call `pop()` too (not their own hide logic directly) so the

@@ -33,7 +33,7 @@ router = APIRouter()
 # The chat assistant never holds the finance PIN and never reads finance data. It has a
 # separate capture key that can add a capped expense and undo its own recent one.
 # Only a hash of the key is stored (finance_config.capture_key_hash); the plaintext
-# lives in a file only my user can read (see capture_key.py).
+# lives in a file only the server's user can read (see tools/capture_key.py).
 _capture_fail: "collections.deque" = collections.deque(maxlen=20)   # times of wrong-key attempts
 
 

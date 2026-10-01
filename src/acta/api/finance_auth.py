@@ -75,7 +75,7 @@ def finance_status():
 @router.post("/api/finance/setup-pin")
 def finance_setup_pin(body: FinancePinIn):
     """Bootstrap only — refuses once a PIN is already configured. There is no
-    change-PIN flow yet (phase 2+); reset by deleting the finance_config rows.
+    change-PIN flow; reset by deleting the finance_config rows.
     Exactly 4 digits to match the fixed 4-cell keypad UI."""
     if not re.fullmatch(r"\d{4}", body.pin):
         raise HTTPException(400, "pin must be exactly 4 digits")

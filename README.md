@@ -1,7 +1,6 @@
 # Acta
 
-[![CI](https://github.com/simaovc32/acta/actions/workflows/ci.yml/badge.svg)]
-(https://github.com/simaovc32/acta/actions/workflows/ci.yml)
+[![CI](https://github.com/simaovc32/acta/actions/workflows/ci.yml/badge.svg)](https://github.com/simaovc32/acta/actions/workflows/ci.yml)
 
 A self-hosted personal health dashboard. It turns the raw data of a cheap fitness strap
 into a minute-by-minute energy model, nightly sleep scores, recovery and training-load
@@ -197,8 +196,7 @@ single prompt: a tool I rely on every day.
 - The interface is in English. Its text goes through a small translation table that also
   has Portuguese, but there's no switch for it in the UI. Some food examples in the
   food-lookup prompt are Portuguese on purpose, so Portuguese descriptions work.
-- `web/js/app/live.js` is one 3,400-line closure that renders the health screens. Splitting
-  it into modules is the next refactor.
+- `web/js/app/live.js` is one 3,300+-line closure that renders the health screens.
 - The food lookup and Auspex narration need an [OpenRouter](https://openrouter.ai/) key
   (`OPENROUTER_API_KEY`); without one those features say so and the rest works.
 

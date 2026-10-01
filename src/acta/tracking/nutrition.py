@@ -441,11 +441,10 @@ def log_food_adhoc(con, *, name, kcal_100g, grams, protein_g=None, ts=None,
 
 # ── meals (multi-component dishes) ────────────────────────────────────────────
 #
-# Why components rather than one composite figure: "frango com arroz" is not a
-# food, it is a ratio. 150 g rice + 50 g chicken and 50 g rice + 150 g chicken
-# are 13% apart in calories but 2.4x apart in protein, so a single kcal_100g can
-# represent one plate or the other, never both. Splitting also means each part
-# is resolved once and reused, which keeps the numbers reproducible.
+# Why components rather than one composite figure: a mixed dish is a ratio, and
+# the same ingredients in different amounts differ far more in protein than in
+# calories, so one kcal_100g can't describe both. Each part is also resolved once
+# and reused, which keeps the numbers reproducible.
 
 def log_meal(con, *, name, components, ts=None, note=None, slot=None) -> dict:
     """Log a dish as one row per component, sharing a meal_id.

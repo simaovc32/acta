@@ -1,11 +1,11 @@
 """
-Body constants + weight log — shared by api.py (writes) and calories.py (reads).
+Body constants + weight log — shared by api/routers/body.py (writes) and calories.py (reads).
 
 Weight is stored as a *time series*, never a constant, for two reasons:
   1. Backfilling calories over history needs the weight in effect on that date,
      not today's weight.
-  2. The later calibration loop (fitting `k` against measured weight trend) needs
-     the same series, so building it now costs nothing and avoids a rewrite.
+  2. The calibration loop (fitting `k` against measured weight trend) needs
+     the same series.
 
 Height/birth date/sex/k live in a singleton `body_config` row.
 
@@ -16,9 +16,9 @@ means the target re-derives itself on every read, and the one number that is
 genuinely a preference (how aggressive the intake goal is) stays the only knob.
 
 CLI:
-    python -m acta.api.routers.body                     # show config + recent weights
-    python -m acta.api.routers.body --weight 74.0       # log a weight for now
-    python -m acta.api.routers.body --protein 2.0       # set the protein target, g per kg
+    python -m acta.tracking.body                     # show config + recent weights
+    python -m acta.tracking.body --weight 74.0       # log a weight for now
+    python -m acta.tracking.body --protein 2.0       # set the protein target, g per kg
 """
 import argparse
 import datetime

@@ -53,10 +53,8 @@ def finance_create_account(body: FinanceAccountIn):
     name = body.name.strip()
     if not name:
         raise HTTPException(400, "name required")
-    # Reject non-EUR rather than accept it and silently mis-total: every
-    # balance is currently stored with amount_eur == amount (no FX feed yet),
-    # so a USD account would be added to the EUR net worth at face value.
-    # Lift this when the ECB rate feed lands.
+    # Only EUR accounts are accepted: there is no FX conversion, so a non-EUR
+    # balance would be added to the EUR net worth at face value.
     if body.currency.upper() != "EUR":
         raise HTTPException(400, "only EUR accounts are supported for now")
     con = open_db_rw()
@@ -201,10 +199,8 @@ def finance_create_sub(body: FinanceSubIn):
 @router.patch("/api/finance/subs/{sub_id}", dependencies=[Depends(require_finance_token)])
 def finance_patch_sub(sub_id: int, body: FinanceSubPatch):
     _validate_sub_fields(body.direction, body.day_of_month, body.amount)
-    # Keyed off which fields the client actually SENT, not off non-None values:
-    # `account_id: null` is a real instruction ("detach this sub from its
-    # account") and is indistinguishable from an omitted field otherwise, so
-    # a sub could never be detached once set. Same for clearing `note`.
+    # Keyed off which fields were SENT, not non-None values: `account_id: null`
+    # means "detach this sub from its account" (same for clearing `note`).
     sent = body.model_fields_set
     fields, values = [], []
     for col in ("name", "amount", "direction", "day_of_month", "account_id", "note"):
@@ -542,11 +538,8 @@ def finance_save_balance(body: FinanceBalanceIn):
     try:
         valid_ids = {r[0] for r in con.execute(
             "SELECT id FROM finance_account WHERE active = 1")}
-        # An account whose balance is derived from holdings must not also accept
-        # a typed balance: that is precisely the two-sources-of-truth drift the
-        # snapshot model was corrected to avoid (2026-07-25). Scoped to accounts
-        # that actually have holdings, not to the kind — otherwise a brand-new
-        # stocks account could never be given a balance at all.
+        # A holdings-derived account can't also take a typed balance (two sources of
+        # truth). Scoped to accounts with holdings, so a new stocks account still can.
         derived_ids = set(fh.holdings_accounts(con))
         now_iso = datetime.datetime.now(TZ).isoformat()
         note = (body.note or "").strip() or None
@@ -566,10 +559,8 @@ def finance_save_balance(body: FinanceBalanceIn):
                 amount = float(amount)
             except (TypeError, ValueError):
                 raise HTTPException(400, f"amount for account {aid} must be a number") from None
-            # Phase 1 is EUR-only; FX conversion for non-EUR accounts lands
-            # with the ECB rate feed in a later phase. amount_eur == amount
-            # for now, kept as a separate column so that later change never
-            # has to touch historical rows.
+            # EUR-only for now, so amount_eur == amount. Kept as a separate
+            # column so adding FX later never has to touch historical rows.
             amount_eur = amount
             con.execute(
                 "INSERT INTO finance_balance(account_id, as_of, amount, amount_eur, note, created_at) "
@@ -611,11 +602,8 @@ def finance_networth(days: int = 365):
             "SELECT id, name, kind, currency, sort_order FROM finance_account "
             "WHERE active = 1 ORDER BY sort_order, id").fetchall()
 
-        # Scoped to ACTIVE accounts: the headline total iterates `accounts`
-        # (active only) while the history series iterates these balance rows,
-        # so an unscoped query would let a removed account keep contributing
-        # to every point on the chart while being absent from the number
-        # above it.
+        # Active accounts only, matching the headline total, so a removed account
+        # doesn't keep feeding the chart while missing from the number above it.
         all_rows = con.execute(
             "SELECT b.account_id, b.as_of, b.amount_eur FROM finance_balance b "
             "JOIN finance_account a ON a.id = b.account_id AND a.active = 1 "
@@ -627,13 +615,9 @@ def finance_networth(days: int = 365):
     for r in all_rows:
         by_acct.setdefault(r["account_id"], []).append((r["as_of"], r["amount_eur"]))
 
-    # An account with no balance row yet is "not snapshotted", not "€0" — the
-    # two read very differently to the user. Only accounts with at least one
-    # snapshot contribute to the total; total_eur/as_of stay null until every
-    # account has been snapshotted at least once would be too strict (adding
-    # a 2nd account shouldn't blank the number from the 1st), so total is the
-    # sum of whatever HAS been snapshotted, and as_of is null only when
-    # nothing has ever been saved.
+    # An account with no balance row is "not snapshotted", not "€0". The total sums
+    # the accounts that have at least one snapshot (adding a 2nd account mustn't blank
+    # the 1st), and as_of is null only when nothing has ever been saved.
     acct_out, total, latest_date, any_snapshot = [], 0.0, None, False
     for a in accounts:
         series = by_acct.get(a["id"], [])
@@ -649,7 +633,7 @@ def finance_networth(days: int = 365):
             "name":       a["name"],
             "kind":       a["kind"],
             "currency":   a["currency"],
-            "amount":     latest[1] if latest else None,   # phase 1: EUR-only, amount == amount_eur
+            "amount":     latest[1] if latest else None,   # EUR-only: amount == amount_eur
             "amount_eur": amt_eur,
             "as_of":      latest[0] if latest else None,
             "sparkline":  [v for _, v in series[-12:]],
@@ -658,12 +642,9 @@ def finance_networth(days: int = 365):
         a["pct"] = round(100 * a["amount_eur"] / total, 1) if (total and a["amount_eur"] is not None) else None
 
     # ---- expected balance per account ------------------------------------
-    # What the balance should be now, given the subs that have landed on it
-    # since its own snapshot. Deliberately NOT written to finance_balance: a
-    # balance stays something the user vouched for, so `unaccounted` keeps
-    # measuring real drift instead of comparing the schedule to itself.
-    # Derived accounts are skipped — theirs is recomputed from holdings daily,
-    # so there is no staleness for subs to explain.
+    # What the balance should be now, given the subs that landed since its snapshot.
+    # Never written to finance_balance, so `unaccounted` keeps measuring real drift.
+    # Derived accounts are skipped: theirs is recomputed from holdings daily.
     today_d = datetime.datetime.now(TZ).date()
     con3 = ledger.open_ro()
     try:
@@ -685,14 +666,9 @@ def finance_networth(days: int = 365):
             events = (ledger.account_events_between(a["id"], snap_d, today_d, con=con3)
                       if snap_d < today_d else [])
 
-            # Transactions are not on a schedule, so the date range is not what
-            # decides whether they count — `status` is. A row stays `pending`
-            # exactly until a confirmed balance absorbs it, which is why a
-            # transaction logged the same day as the last snapshot still shows
-            # up here instead of being silently dropped by a date comparison.
-            # target='cash' legs belong to a derived account's cash figure, not
-            # to a balance anyone types — they are proposed and confirmed on the
-            # Cash card instead.
+            # Transactions count by `status`, not date: a row stays `pending` until a
+            # confirmed balance absorbs it, so one logged on the snapshot day still shows.
+            # target='cash' legs belong to a derived account's Cash card, not a balance.
             tx_rows = con3.execute(
                 "SELECT id, amount_eur, description, occurred_on FROM finance_tx "
                 "WHERE account_id = ? AND status = 'pending' AND target = 'balance' "
@@ -736,11 +712,8 @@ def finance_networth(days: int = 365):
     if latest_date and history:
         target = (datetime.date.fromisoformat(latest_date)
                   - datetime.timedelta(days=30)).isoformat()
-        # The LAST history point at or before the 30-day mark — history is
-        # sorted ascending, so next() would return the OLDEST such point and
-        # silently widen the window to the whole history (a 3-snapshot user
-        # would see "+€1000 · 205d" where "+€200 · 54d" is meant, and
-        # saved/mo would become a lifetime average instead of a recent rate).
+        # The LAST history point at or before the 30-day mark (history is ascending,
+        # so next() would return the oldest and widen the window to the whole history).
         earlier = [h for h in history if h["as_of"] <= target]
         past = earlier[-1] if earlier else history[0]
         if past["as_of"] != latest_date:
@@ -754,33 +727,18 @@ def finance_networth(days: int = 365):
     if change and change["days"] > 0:
         saved_per_month_eur = round(change["amount_eur"] / change["days"] * 30.44, 2)
 
-    # ---- subs-driven figures (phase 2) ------------------------------------
+    # ---- subs-driven figures --------------------------------------------
     con2 = ledger.open_ro()
     try:
         sub_totals = ledger.monthly_totals(con=con2)
 
-        # Unaccounted = actual change between the last two snapshots minus
-        # what the known subs schedule alone would predict for that same
-        # window. Positive = you ended up with more than subs explain
-        # (unlogged income); negative = you spent more than subs explain.
-        # Needs >=2 snapshot dates in the carry-forward history; without a
-        # second point there is nothing to compare against yet.
-        # Holdings-derived accounts rewrite their own balance from market prices
-        # every night, which is neither income nor spending. Folding that into
-        # `unaccounted` made the tile non-zero every single day (the -35.47 read
-        # on 2026-08-10 was one ETF's price move, not a euro spent), which
-        # trains the eye to ignore the one number that exists to catch real
-        # drift. So the two are reported separately: `unaccounted` covers only
-        # accounts whose balance the user vouches for, and market movement is
-        # its own figure.
-        # Both figures are computed per account over that account's OWN last two
-        # balance rows, not over the last two dates in the combined history.
-        # That distinction matters now that the price feed writes a derived
-        # balance every night: the global history gains a point daily, so a
-        # shared window would collapse to ~1 day and a sub that landed five days
-        # ago would fall outside it and be misreported as unexplained drift.
-        # Each account's own gap is the only window over which "what should have
-        # changed" is a well-posed question.
+        # Unaccounted = actual change between an account's last two snapshots minus what
+        # the subs schedule predicts for that window. Positive = unlogged income;
+        # negative = unlogged spending. Needs >=2 snapshots to compare.
+        # Holdings-derived accounts are excluded: their nightly price-driven balance is
+        # neither income nor spending, so market movement is reported as its own figure.
+        # Each account uses its OWN last two balance rows, not the combined history,
+        # which gains a point every night from the price feed.
         subs_all = ledger.active_subs(con2)
         unaccounted_eur = None
         market_move_eur = None
@@ -806,12 +764,8 @@ def finance_networth(days: int = 365):
                     continue
                 n = len(ledger.occurrences_between(s["day_of_month"], prev_d, cur_d))
                 expected += n * s["amount"] * (1 if s["direction"] == "in" else -1)
-            # Transactions the user logged are explained spending, so they
-            # belong in the expectation exactly like a sub occurrence. Without
-            # this, logging a purchase would *increase* `unaccounted` by its
-            # amount — the tile would punish the very habit it exists to
-            # prompt. Only applied rows count: a pending one has not moved a
-            # balance yet, so there is nothing for it to explain.
+            # Applied transactions are explained spending, like a sub occurrence, so logging
+            # a purchase doesn't raise `unaccounted`. Pending ones haven't moved a balance yet.
             expected += con2.execute(
                 "SELECT COALESCE(SUM(amount_eur), 0) FROM finance_tx "
                 "WHERE account_id = ? AND status = 'applied' AND target = 'balance' "

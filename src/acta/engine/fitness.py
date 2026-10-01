@@ -14,13 +14,12 @@ B reads recent training load. For an ex-athlete under a light training block
 they diverge, and the gap is the information ("your heart says X, your training
 says Y"), not an error to hide.
 
-Nothing is fitted in-house — no lab-VO2max ground truth exists to fit to, and
-fitting to anything else is the mistake the sleep-weight tuner made twice.
+Nothing is fitted in-house: no lab-VO2max ground truth exists to fit to.
 
 Leaf metric: feeds nothing (not biocharge, not readiness, not the sleep score).
 Display only, on the biocharge tab. Percentile is FRIEND-registry (Kaminsky
-2015). No "fitness age" label — it floors for a fit 20-year-old and swings more
-with the formula than the person (decided 2026-09-04).
+2015). No "fitness age" label: it floors for a fit 20-year-old and swings more
+with the formula than the person.
 
 Incremental + idempotent, same shape as calories.update() / night_physio.update():
 fills any day from the first scored night to today not already in
@@ -71,11 +70,8 @@ REFRESH_TAIL_DAYS = 3   # RHR median + PA window both keep moving for a few days
 # Measures parasympathetic (vagal) reactivation, a distinct dimension from
 # aerobic capacity and an independent mortality predictor (Cole 1999).
 #
-# NOT fed into the VO2max range. The one published field equation (StepTest4all,
-# 22 + 0.3*HRR + 12) is calibrated on a sub-maximal STEP TEST; run against
-# real football/running sessions it returns ~44 (≈20 pts low), because
-# HRR after a maximal field effort is not comparable to step-test HRR. Observed
-# over 5 sessions 2026-09-04 and demoted to a standalone readout.
+# NOT fed into the VO2max range: the published field equation is calibrated on a
+# sub-maximal step test, and HRR after a maximal field effort isn't comparable.
 HRR_WINDOW_SESSIONS = 6
 HRR_KINDS = ("run", "cardio", "football", "sport")
 HRR_MIN_REF_HR = 130      # the effort must have been real
@@ -286,11 +282,9 @@ def _pa_index(con, gb, date_iso: str) -> tuple[float, str, float]:
 
     total = vigeq + strength_wk
 
-    # Confirmed unlogged sessions caught from HR are the "connection between the
-    # detection queue and this algo" that was asked for. Their minutes are ALREADY
-    # in the PAI zone data (a confirmed session generated those zone minutes), so
-    # they are not added again — instead >=2 confirmed hard sessions in the
-    # window put a floor under the estimate: you cannot read as sedentary.
+    # Confirmed unlogged sessions' minutes are ALREADY in the PAI zone data, so they
+    # are not added again; instead >=2 confirmed hard sessions in the window put a
+    # floor under the estimate, so it can't read as sedentary.
     n_conf = con.execute(
         "SELECT COUNT(*) FROM pai_detection WHERE status = 'confirmed' "
         "AND date >= ? AND date <= ? AND COALESCE(work_min, duration_min) >= 20",
@@ -360,7 +354,7 @@ def _percentile(vo2max: float, age: float, sex: str) -> float:
 
 
 # ── reconcile ─────────────────────────────────────────────────────────────────
-W_UTH, W_NES = 0.55, 0.45   # fixed for v1; PA-confidence weighting is future work
+W_UTH, W_NES = 0.55, 0.45   # fixed weights
 
 
 def _reconcile(a: float | None, b: float | None, rhr_age: int | None):

@@ -2,16 +2,14 @@
 
 The problem this solves
 -----------------------
-lag_mining sweeps a fixed grid: 17 predictors x 10 targets x 3 lags. It is
+lag_mining sweeps a fixed grid: 16 predictors x 9 targets x 3 lags. It is
 genuinely hypothesis-free within that grid and completely blind outside it. If a
 relationship needs a pairing nobody thought to list, the sweep will never find
 it, and widening the grid by hand only moves the boundary -- it does not remove
 it. Put simply: Python is rigid, it needs edits to change.
 
-Letting a language model loose on the data instead is not the answer either. The
-Phase 0 spike settled that: handed a table of nights and asked what was
-degrading, it read variance as trend, and it kept saying so even when the
-statistic contradicting it was placed in front of it.
+Letting a language model loose on the data instead is not the answer either: it
+reads variance as trend, even when the contradicting statistic is in front of it.
 
 So the roles are inverted rather than swapped. The model never measures
 anything. It proposes *which pairs are worth measuring* -- a question about
@@ -28,8 +26,7 @@ What is deliberately not in the vocabulary
 The subjective columns. mental_day and mental_evening are readable by the
 preset question that describes them, but a discovery engine fed self-reports can
 only rediscover what the user already told it, and the point of Acta is the
-opposite. Same reasoning that removed sleep_rating and body_energy from
-lag_mining's targets.
+opposite. lag_mining's targets follow the same rule.
 
 CLI:
     python -m acta.insights.explore --vocab        # what the model may propose from
@@ -183,10 +180,8 @@ def validate(hyps: list) -> tuple[list, list]:
             why = "already found by the exhaustive sweep"
         elif LM._structural(pk, tk, lag):
             why = "definitional: " + LM._structural(pk, tk, lag)
-        # Coverage is no longer a hard reject. The model is told how many
-        # informative nights each feature has and can still spend a proposal on
-        # a thin one; the bootstrap in test() then answers honestly -- "the
-        # interval includes zero" is more use than "not allowed".
+        # Coverage is not a hard reject: the model is told how many informative nights
+        # each feature has, and the bootstrap in test() answers honestly for a thin one.
         seen.add((pk, tk, lag))
         if lag == 0:
             seen.add((tk, pk, lag))   # A->B and B->A same night are one test
@@ -266,9 +261,7 @@ data. The verdicts are authoritative and you may not argue with them.
 def run(n: int = N_PROPOSALS, persist: bool = True) -> dict:
     hyps, pres = propose(n)
     if pres["status"] != "ok":
-        # Logged like any other failure. Narrate failures were already recorded
-        # and propose failures were not, which contradicted log_query's promise
-        # that everything the model was asked lands in one place.
+        # Logged like any other failure, so everything the model was asked lands in one place.
         if persist:
             auspex.log_query(question_id="explore",
                              question_text=f"Propose and test {n} new hypotheses about my data",

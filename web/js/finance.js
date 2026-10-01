@@ -1,4 +1,5 @@
-// Acta — Finance tab logic (phase 1: auth, accounts, balances, net worth).
+// Acta — Finance tab logic: auth, accounts, balances, net worth, investments,
+// subscriptions, transactions/transfers and the wish list.
 // Classic script, loaded after the main inline script on all breakpoints.
 // Wrapped in an IIFE; exposes only window.financeOnShow. Owns #finance-box
 // (main-screen widget), #passcode-modal (its unlock dialog) and everything
@@ -43,10 +44,8 @@
     const r = Math.round(n);
     return (r < 0 ? '-€' : '€') + Math.abs(r).toLocaleString('pt-PT');
   }
-  // fmtEur rounds to whole euros, which is right for headline figures and wrong
-  // anywhere the exact number is the point — a €10.44 subscription shows as €10,
-  // and a "Confirm €93" button that stores €92.56 is simply lying about what it
-  // is about to write.
+  // fmtEur rounds to whole euros for headline figures; use this wherever the exact
+  // amount matters (a €10.44 sub, a "Confirm" button showing what it will store).
   function fmtEurExact(n) {
     if (n === null || n === undefined) return '—';
     return (n < 0 ? '-€' : '€') + Math.abs(n).toLocaleString('pt-PT',
@@ -96,11 +95,8 @@
     requestAnimationFrame(() => { try { el.focus(); el.select && el.select(); } catch (e) {} });
   }
 
-  // ── shared PIN pad (drives both the main-card modal and the inline tab
-  // lock; both reuse .passcode-input/.passcode-keypad for identical look) ──
-  //
-  // Registry of live pads, so a single document-level keydown listener can
-  // route typed digits to whichever pad is currently on screen.
+  // ── shared PIN pad (main-card modal + inline tab lock) ──
+  // Registry of live pads, so one keydown listener routes digits to the visible one.
   const pinPads = [];
 
   function wirePinPad(cellsWrap, keypadWrap, errorEl, onComplete, isVisible) {
@@ -161,12 +157,8 @@
       visible: isVisible || (() => cellsWrap.isConnected),
     };
 
-    // Click handling is delegated to the keypad container and attached only
-    // ONCE per container, with the current pad stored on the node. The card
-    // modal's keypad is static markup reused on every open, so re-attaching
-    // per-button listeners stacked one live closure per previous open — a
-    // single 4-digit entry then fired one unlock attempt per open, burning
-    // the 5-attempt lockout after ~2 real tries.
+    // Delegated click handler, attached once per container with the current pad
+    // stored on the node, so reopening the modal never stacks extra listeners.
     keypadWrap._pad = api;
     if (keypadWrap.dataset.padWired !== '1') {
       keypadWrap.dataset.padWired = '1';
@@ -323,10 +315,7 @@
       '</div>';
   }
   // Wire the subtab buttons after any render that includes subtabsHtml().
-  // Locked/loading views don't call this (nothing to switch to yet).
-  // Function declarations (renderNetWorthTab/renderSubsTab/renderWishlistTab)
-  // are hoisted within this IIFE, so referencing them here before their
-  // definitions appear further down the file is safe.
+  // The render*Tab functions are hoisted, so referencing them here is safe.
   function wireSubtabs() {
     screen.querySelectorAll('.fin-subtab[data-tab]').forEach(b => {
       b.addEventListener('click', () => {
@@ -385,10 +374,8 @@
              !(modal && modal.classList.contains('show')));
   }
 
-  // ---- net worth trend chart: actual solid, projected-from-subs dashed
-  // continuation in the same hue (identity via dash pattern + legend, not a
-  // second colour — a projection isn't a different series, it's the same
-  // measure extended). ----
+  // ---- net worth trend chart: actual solid, projection dashed in the same hue
+  // (it's the same measure extended, not a different series). ----
   function renderChartSvg(history, projection) {
     if (!history || history.length < 2) {
       return '<div class="fin-chart-empty">Add another snapshot to see a trend</div>';
@@ -453,9 +440,9 @@
   const INV_TOP = 5;              // donut segments before the tail folds to Other
   let invAcct = 'all';            // 'all' | account_id, survives re-renders
 
-  // Six segments is the readable ceiling for part-to-whole. With 23 holdings
-  // where the top four are ~79%, the tail would be unlabellable slivers — so it
-  // becomes one grey "Other" and the full list below carries the detail.
+  // Six segments is the readable ceiling for part-to-whole. With many holdings
+  // the tail would be unlabellable slivers, so it becomes one grey "Other" and
+  // the full list below carries the detail.
   function invSegments(lines) {
     const sorted = lines.filter(l => l.value !== null)
                         .sort((a, b) => b.value - a.value);
@@ -840,11 +827,7 @@
       return;
     }
 
-    // Every investment account is a valid selection, derived or not — an
-    // account with no holdings yet (e.g. a crypto account before its first
-    // position) used to be completely invisible here: the API already
-    // returned it, nothing in the UI let you click into it and add a first
-    // holding.
+    // Every investment account is selectable, including one with no holdings yet.
     if (invAcct !== 'all' && !accounts.some(a => String(a.account_id) === String(invAcct))) {
       invAcct = 'all';
     }
@@ -922,14 +905,10 @@
         '<span class="p">' + (total ? (s.value / total * 100).toFixed(1) : '0.0') + '%</span>' +
       '</div>').join('');
 
-    // The ticker alone is not identification: XDWS and XDWH are one letter apart
-    // and hold entirely different sectors. The name gets its own line so it is
-    // readable rather than crammed into the mono metadata row.
-    // Rows are only editable when a single account is in view. In the merged
-    // "all" view a line can be the sum of the same symbol held in two accounts,
-    // and it carries just the first one's id — editing it would silently change
-    // one account while displaying the total of both.
+    // Rows are editable only with a single account in view: in "all" a line can sum
+    // one symbol across accounts but carries only the first one's id.
     const editable = shown.length === 1;
+    // The ticker alone is not identification (XDWS vs XDWH), so the name gets its own line.
     const rows = priced.map(l =>
       '<div class="inv-row' + (editable ? ' editable' : '') + '"' +
           (editable ? ' data-hid="' + l.id + '"' : '') + '>' +
@@ -951,12 +930,8 @@
     const staleNote = anyStale
       ? '<div class="fin-nudge">⏱ Prices are ' + staleDays + ' days old.</div>' : '';
 
-    // Two cards in the house .fin-cols grid, same as the Net worth tab: without
-    // it the content spans the whole desktop width and a legend label ends up
-    // ~1000px from its own value, which defeats the point of a legend.
-    // Holdings is by far the tallest card. With enough rows the left column ends far short of it, and that
-    // gap is where Watching goes; with few rows the left column is already the taller one and Watching
-    // stays below both.
+    // Two cards in the .fin-cols grid (as on Net worth), so legends stay near their values.
+    // With many holdings, Watching fills the gap under the left column; otherwise it goes below both.
     const watchLeft = priced.length >= 8;
     screen.innerHTML = subtabsHtml('invest') + staleNote + unpricedNote +
       '<div class="inv-accts">' + btns + '</div>' +
@@ -1101,17 +1076,12 @@
     const savedVal = nw.saved_per_month_eur;
     const savedClass = savedVal !== null && savedVal < 0 ? ' warn' : '';
     const savedK = change ? 'saved / mo · ' + change.days + 'd' : 'saved / mo';
-    // The window comes from the server, which measures each account over its
-    // own snapshot gap. Deriving it here from the combined history would read
-    // "1d" every day, because the nightly price feed adds a history point
-    // whether or not you touched a bank balance.
+    // The window comes from the server (each account's own snapshot gap); the combined
+    // history would read "1d" daily because the price feed adds a point every night.
     const unaccK = nw.unaccounted_days
       ? 'unaccounted · ' + nw.unaccounted_days + 'd' : 'unaccounted';
-    // Market movement is reported separately from `unaccounted` and never
-    // folded into it: a price move is not money spent, and mixing the two made
-    // the unaccounted tile non-zero every single day once holdings went live,
-    // which is how a signal stops being read. Not warn-coloured on a loss —
-    // a down day is normal, not something the user did wrong.
+    // Market movement is kept out of `unaccounted`: a price move is not money spent.
+    // Not warn-coloured on a loss — a down day is normal.
     const mktVal = nw.market_move_eur;
     const mktK = 'market · since last price';
 
@@ -1231,11 +1201,9 @@
       return;                      // tap again to close
     }
     screen.querySelectorAll('.fin-inline').forEach(n => n.remove());
-    // Pre-fill with the EXPECTED figure when subs have landed since the last
-    // snapshot: confirming is then one tap, and the subs that explain it are
-    // listed so you know what you are agreeing to. It stays editable on
-    // purpose — blindly accepting the schedule would be auto-deduction wearing
-    // a button, and would make `unaccounted` measure nothing.
+    // Pre-fill with the expected figure when subs have landed (listed below), so
+    // confirming is one tap. Editable on purpose: auto-accepting the schedule would
+    // make `unaccounted` measure nothing.
     const hasExp = acct.expected_eur !== null && acct.expected_eur !== undefined
                    && !!acct.expected_delta_eur;
     const prefill = hasExp ? acct.expected_eur
@@ -1687,19 +1655,12 @@
     });
   }
 
-  // Annual cost per subscription, ranked.
-  //
-  // The point of the card is the reframe: €6.99/mo reads as nothing and €84/yr
-  // reads as a decision. Ranking by annual cost also puts the one that actually
-  // matters at the top, which a list sorted by renewal day never does.
-  //
-  // Income subs are excluded — this answers "what is this costing me", and a
-  // salary line would dwarf every bar and make the chart useless.
+  // Annual cost per subscription, ranked: €84/yr reads as a decision where €6.99/mo
+  // doesn't. Income subs are excluded (a salary line would dwarf every bar).
   function annualisedCardHtml(outSubs) {
     if (!outSubs.length) return '';
     // Monthly cadence is the whole model today (finance_sub has no cadence
-    // field), so annual is x12. If yearly plans are ever added, this is the
-    // place that has to learn about them.
+    // field), so annual is x12. 
     const rows = outSubs
       .map(s => ({ name: s.name, eur: s.amount * 12 }))
       .sort((a, b) => b.eur - a.eur);
@@ -1825,9 +1786,7 @@
   // Only 4 fields are ever typed: name, price, want, need. Everything under
   // the divider on each card is computed server-side; the verdict line below
   // is a plain, visible if/then rule over that trend — never a hidden score,
-  // and never fitted to how the ratings "should" behave (same standing rule
-  // as readiness/pain: predict/surface objective facts, don't calibrate to
-  // self-report).
+  // and never fitted to how the ratings "should" behave.
   function wishScaleOptions(selected) {
     return Array.from({ length: 10 }, (_, i) => i + 1)
       .map(n => '<option value="' + n + '"' + (n === selected ? ' selected' : '') + '>' + n + '</option>')
@@ -1871,10 +1830,7 @@
     autofocus('#fin-wish-name');
   }
 
-  // Transparent rule, not a score: needs >=2 ratings to say anything about a
-  // trend at all; otherwise there's nothing yet to compare against.
-  // Want over time. The API exposes first and current want per item, so each
-  // line has two points — enough to show direction, which is the whole job.
+  // Want over time: first and current want per item, enough to show direction.
   function wantTrendSvg(items) {
     if (!items.length) return '';
     const W = 300, H = 96, PAD = 10, LBL = 16;
@@ -1909,6 +1865,7 @@
            '<div class="fin-comp-leg" style="padding:12px 0 0">' + leg + '</div>';
   }
 
+  // Transparent rule, not a score: needs >=2 ratings to say anything about a trend.
   function wishVerdict(item) {
     if (item.rating_count < 2) {
       return { cls: 'wait', text: 'Re-rate later to see the want trend' };

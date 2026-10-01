@@ -148,9 +148,8 @@ def finance_patch_wish(wish_id: int, body: FinanceWishStatusIn):
     try:
         if not con.execute("SELECT 1 FROM finance_wish WHERE id = ?", (wish_id,)).fetchone():
             raise HTTPException(404, "item not found")
-        # Marking "bought" does not create a transaction — finance_tx doesn't
-        # exist yet (phase 4). This only closes out the wish-list entry;
-        # linking a real purchase to an account deduction is phase 4 scope.
+        # Marking "bought" only closes out the wish-list entry; it does not
+        # create a finance_tx transaction or touch any account.
         bought_on = datetime.datetime.now(TZ).date().isoformat() if body.status == "bought" else None
         con.execute(
             "UPDATE finance_wish SET status = ?, bought_on = ? WHERE id = ?",

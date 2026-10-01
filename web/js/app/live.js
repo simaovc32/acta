@@ -24,23 +24,15 @@
   }
 
   // ── Main tab: biocharge ring + state rows ─────────────────
-  // `root` scopes the update. Defaults to the whole document (live path: Main
-  // screen + Health/Biocharge tab both show today). The past-day path passes
-  // #screen-health, so browsing history never rewrites the Main screen's ring —
-  // Main is always "right now", regardless of which day Health is showing.
+  // `root` scopes the update (default: whole document, i.e. Main + Health both
+  // show today). The past-day path passes #screen-health so Main stays live.
   function applyMainBio(level, startLevel, root, fresh) {
     const scope = root || document;
-    // Two rings now exist in the DOM (Main screen + Health/Biocharge tab) —
-    // update every match via class, not a single id.
-    // circumference from each ring's own radius (the Main ring is r=60, the Health one r=48)
+    // Both rings (Main r=60, Health r=48): update every match by class.
     const circOf = c => 2 * Math.PI * c.r.baseVal.value;
 
-    // No real data covers "now" yet (e.g. no sync since last night) — the
-    // pipeline's last stored row is from an earlier day. Showing it as the
-    // current level reads as live when it is hours stale, so say so plainly
-    // instead (2026-09-22). `fresh` is only passed on the live path; the
-    // day-navigator path (loadDayView) never passes it, so past days are
-    // unaffected — they're already handled by their own 404/empty logic.
+    // No data covers "now" yet: say it's stale rather than show it as live.
+    // Only the live path passes `fresh`; past days handle their own empty state.
     if (fresh === false) {
       scope.querySelectorAll('.bio-ring-prog, .bio-ring-start').forEach(ring => {
         const C = circOf(ring);
@@ -132,15 +124,8 @@
     const timesEl = document.getElementById('sleep-times-val');
     if (timesEl) timesEl.innerHTML = `${fmtMin(sl.bedtime_ts, sl.tz_offset_min)} – ${fmtMin(sl.waketime_ts, sl.tz_offset_min)}`;
 
-    // The bar was dividing by asleep_min while summing deep+rem+light+awake,
-    // which never added up: awake is not part of asleep, and on a night with
-    // recovered sleep the stages fall short of the total (361 of 455 on
-    // 2026-08-23) leaving 15% of the bar blank. The denominator is now the sum
-    // of the segments actually drawn, so it always fills.
-    //
-    // Recovered sleep is folded into light for display only -- the same
-    // convention Gadgetbridge uses, and the same one the hypnogram chart uses.
-    // light_min in the stats stays untouched.
+    // Denominator is the sum of the drawn segments, so the bar always fills.
+    // Recovered sleep is shown as light (Gadgetbridge convention); light_min is untouched.
     const bar = document.querySelector('#screen-main .sleep-bar');
     const lightShown = (sl.light_min || 0) + (sl.ext_sleep_min || 0);
     const segTotal = (sl.deep_min || 0) + (sl.rem_min || 0) + lightShown + (sl.awake_min || 0);
@@ -172,10 +157,8 @@
   let liveDayNaps = [];       // /api/naps for the shown day — nap band + hover detail
   let liveDayActivities = []; // /api/activities for the shown day — gold band, icon and hover detail on the curve
 
-  // Logged workouts (gym, run, bike, football, coaching ...) on the biocharge curve: a gold band behind it, the
-  // stretch of the line in gold, and a flat single-stroke icon on top, the way the sleep window carries its
-  // moon. One gold for every kind of workout; the icon says which. Orange stays for effort the strap saw that
-  // nobody logged. Icons are 24-unit glyphs drawn like the moon (round caps, no fill).
+  // Logged workouts on the biocharge curve: a gold band, gold line stretch and an icon
+  // for the kind. Orange stays for unlogged effort the strap saw.
   const ACT_GOLD = 'oklch(0.83 0.15 90)';
   const ACT_ICONS = {
     gym: '<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>',
@@ -193,10 +176,8 @@
   const actAt = ts => (liveDayActivities || []).find(a => ts >= a.start_ts && ts <= a.end_ts) || null;
   const actText = a => `${a.name} · ${a.minutes} min`;
   const actRange = a => `${a.start}–${a.end}`;
-  // Icon (and, when there is room, "Gym · 25 min") for each workout, plus its band. `at(a)` returns
-  // {x1, x2} for the workout on this chart; the caller supplies its own top, height and geometry.
-  // Crowding: a label is only printed when it fits before the next workout's icon (or the chart edge, or,
-  // on the last one, on its left); an icon that would sit on the previous one drops to a second row.
+  // Icon (plus "Gym · 25 min" when it fits) and band per workout; `at(a)` returns {x1, x2}.
+  // A label prints only if it fits before the next icon; an overlapping icon drops a row.
   function actMarks(at, top, height, xMin, xMax, iconY, iconSize, labelAttrs, charW) {
     const items = [];
     (liveDayActivities || []).forEach(a => {
@@ -247,12 +228,8 @@
     return (liveDayNaps || []).find(n => n.start_ts <= e && n.end_ts >= s) || null;
   }
   const _origRenderBioDay = renderBioDay;
-  // Draws today's biocharge curve into a target SVG. Two call sites now:
-  // the Health→Biocharge strip and the Main screen's hero band.
-  // Design follows the mockup's energy chart: shaded sleep window with an
-  // "Asleep until" label, peak and Now labels, dashed projection, 00:00–24:00
-  // axis, hover/touch/keyboard scrub. Activity colouring (asleep blue, exertion orange,
-  // strap gap grey) is kept because it carries data the mockup sample never exercised.
+  // Draws today's biocharge curve into a target SVG (Health strip and Main hero band):
+  // sleep window, peak/Now labels, projection, scrub, and activity colouring.
   function drawBioDay(targetId) {
     const pts = liveDaySeries;
     const svg = document.getElementById(targetId);
@@ -260,9 +237,7 @@
     if (pts.length < 2) {
       if (targetId === 'bio-day-line') _origRenderBioDay();
       else renderChartEmpty(svg, 600, 150, 'No data · please upload');
-      // Otherwise the Wake/Now header figures from the last successful
-      // render linger next to a chart that just said "no data" — the same
-      // stale-number-looks-live problem this fix is for, just in the header.
+      // Clear the header too, so the last render's figures don't linger.
       document.querySelectorAll('.bio-strip-foot .start strong').forEach(el => { el.textContent = '—'; });
       document.querySelectorAll('.bio-strip-foot .now strong').forEach(el => { el.textContent = '—'; });
       return;
@@ -421,13 +396,8 @@
         T.hide(); cur = -1;
       };
       const nearestAt = px => { const S = svg._scrub; let bi = 0, bd = 1e9; S.xs.forEach((x, i) => { const d = Math.abs(x - px); if (d < bd) { bd = d; bi = i; } }); return bi; };
-      // In viewBox units, not raw CSS pixels — if a redraw ever happened while
-      // this chart was hidden (0-width, e.g. the 5-min refresh firing on the
-      // Health tab), the viewBox falls back to a fixed width while the element
-      // later renders at its real (usually wider) width, stretching the drawn
-      // chart. Raw pixel offsets then point further right than the cursor,
-      // worse the wider the real chart is — this scales back to match
-      // regardless of whether such a mismatch happened (2026-09-22).
+      // Convert to viewBox units: a redraw while hidden can leave the viewBox width
+      // different from the rendered width, so raw pixel offsets would drift.
       const local = e => {
         const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
         return r.width ? (e.clientX - r.left) * (vb.width / r.width) : e.clientX - r.left;
@@ -539,10 +509,7 @@
     const LINE_MINT = 'oklch(0.78 0.12 165)', LINE_ORANGE = 'oklch(0.72 0.16 55)';
     const LINE_GREY = 'oklch(0.52 0.012 250)';   // no strap data — see drawBioDay
     const LINE_SLEEP = 'oklch(0.64 0.13 264)';   // must match drawBioDay's SLEEP
-    // Same rule as the mini strip: sleep blue / exertion orange / grey when the
-    // strap wasn't recording / mint otherwise. This branch used to omit sleep,
-    // so the expanded chart drew the whole night mint while the strip beside it
-    // drew it blue — two views of one series disagreeing.
+    // Same rule as the mini strip: sleep blue / exertion orange / grey strap gap / mint.
     const lineColor = i => {
       const p = pts[i];
       if (p && actAt(p.minute_ts)) return ACT_GOLD;   // a logged workout wins, as on the strip
@@ -801,12 +768,8 @@
     applySleepComponents(sl);
     applySleepPhoneSummary(sl);
 
-    // A day with no scored night is a real state (travel, strap off, a night
-    // that never synced) and /api/sleep/latest?date= answers it with a 404, so
-    // `sl` arrives null. Reading sl.score here used to throw, and the throw was
-    // swallowed by loadDayView's catch — which meant renderBioDay() and
-    // renderHypnogram() never ran and the PREVIOUS day's charts stayed on
-    // screen under the newly selected date. Say "no data" instead.
+    // No scored night (travel, strap off) gives a 404, so `sl` is null: show "no data"
+    // rather than leave the previous day's charts on screen.
     if (!sl) {
       const sn0 = document.querySelector('.sleep-score-card .score-num');
       if (sn0) sn0.textContent = '—';
@@ -875,9 +838,7 @@
       const pct = m => Math.round(m / totalMin * 100);
       metrics[0].querySelector('.v').innerHTML = fmtHM(totalMin);
 
-      // "vs avg" was static mockup text (always "▲ +18m"). Compare against the
-      // same 7-night mean the Sleep-time chart draws its dashed line at, so the
-      // number here and the chart below can never disagree.
+      // Compare against the same 7-night mean the Sleep-time chart draws.
       const durSub = metrics[0].querySelector('.sub');
       if (durSub) {
         const durs = (recent || []).slice(0, 7)
@@ -997,9 +958,7 @@
 
   function applyVitals(v) {
     if (!v) {
-      // No HR sample yet today (see vitals_snapshot()'s `fresh` flag) — blank
-      // rather than returning early, which would leave a previous fetch's
-      // numbers on screen looking current. Mirrors the sleep empty-state fix.
+      // No HR sample yet today: blank rather than return early, so old numbers don't look current.
       lastSnapshot = null;
       applyBattery(null);
       ['snap-hr', 'main-hr-val', 'main-rhr', 'main-hrv', 'main-spo2'].forEach(id => {
@@ -1123,17 +1082,9 @@
     out += `<circle class="vs-cursor" r="4" fill="var(--accent)" stroke="var(--panel)" stroke-width="1.5" style="display:none"/>`;
     return `<svg class="vital-spark" id="${svgId}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${out}</svg>`;
   }
-  // Vitals-tab recovery metrics: HRV / RHR / SpO₂ / skin-temp are only sampled
-  // overnight (or are a once-a-day aggregate, for RHR), so they render as
-  // full-size 14-day trend panels — same size as the HR/stress day charts —
-  // rather than intraday curves.
-  //
-  // The panel readout reflects the plotted series only (its last night-bucketed
-  // point), never the live snapshot. The snapshot is a ~20-min window right at
-  // wake — for HRV especially it runs far above the whole-night mean the chart
-  // plots, so feeding it into the readout made the header disagree with the end
-  // of the line and with the hover value (128 ms header vs a dot at 105). The
-  // live "now" value has its own home in the Vitals "Now" strip (vn-hrv, …).
+  // Recovery metrics (HRV / RHR / SpO₂ / skin temp) are overnight values, so they render
+  // as 14-day trend panels. The readout uses the last plotted point, not the live
+  // snapshot (which runs above the night mean); "now" lives in the Vitals "Now" strip.
   let lastVitalsHistory = null, lastVitalsSnapshot = null;
   function applyVitalsTab(vh, snapshot) {
     lastVitalsHistory = vh || null;
@@ -1203,9 +1154,7 @@
     const last = b => (b && Array.isArray(b.series) && b.series.length)
       ? b.series[b.series.length - 1].value : null;
 
-    // No live snapshot today — don't fall back to the trend history's last
-    // point either, or "Now" silently shows yesterday's daily figure again
-    // (same bug shape as the biocharge/sleep staleness fix, 2026-09-22).
+    // No live snapshot today: show no data, never yesterday's figure.
     if (!s) {
       ['vn-hr', 'vn-rhr', 'vn-hrv', 'vn-spo2', 'vn-resp', 'vn-temp'].forEach(id => set(id, null));
       ['vn-hr-sub', 'vn-rhr-sub', 'vn-hrv-sub', 'vn-spo2-sub', 'vn-resp-sub', 'vn-temp-sub'].forEach(id => {
@@ -1257,10 +1206,7 @@
     const P = { l: 28, r: 10, t: 12, b: 18 };
     const iW = W - P.l - P.r, iH = H - P.t - P.b;
 
-    // Anchor to the day the series belongs to, not to today — otherwise a past
-    // day's samples all fall before today's midnight and xAt() clamps them to 0,
-    // collapsing the curve into a vertical line at the left edge. Same trap as
-    // drawBioDay(); both charts are day-windowed and must anchor the same way.
+    // Anchor to the series' own day, not today (same as drawBioDay).
     const dayStart = new Date(series[0].ts); dayStart.setHours(0, 0, 0, 0);
     const t0 = dayStart.getTime(), dayMs = 24 * 3600 * 1000;
     const xAt = t => P.l + Math.max(0, Math.min(1, (t - t0) / dayMs)) * iW;
@@ -1268,10 +1214,7 @@
     const vals = series.map(p => p.v);
     let lo, hi;
     if (opts.lo != null && opts.hi != null) {
-      // Fixed scale. Stress is a 0-100 index, so auto-scaling made a calm day
-      // and a bad one look identical -- the curve filled the panel either way
-      // and only the axis labels differed. A fixed axis is what makes two days
-      // comparable at a glance.
+      // Fixed scale so two days are comparable at a glance.
       lo = opts.lo; hi = opts.hi;
     } else {
       lo = Math.min(...vals); hi = Math.max(...vals);
@@ -1867,8 +1810,7 @@
     }, { passive: false });
   })();
 
-  // Tapping a row opens its actions. This is also the only place a logged
-  // entry can be removed now that the modal no longer lists the day.
+  // Tapping a row opens its actions — the only place a logged entry can be removed.
   let rowMenu = null;
   function closeRowMenu() {
     if (rowMenu) { rowMenu.remove(); rowMenu = null; }
@@ -2137,10 +2079,8 @@
       flag.textContent = today.low_coverage ? '⚠ low strap coverage' : '';
     }
 
-    // Three bands, not two. "Active" used to mean everything above resting,
-    // which lumped a football match together with walking to the kitchen.
-    // Deliberate sessions get their own colour (the workout hue) so the day's
-    // shape is readable: how much was living, how much was training.
+    // Three bands: resting, living, and training (in the workout colour), so the day's
+    // shape shows how much was training.
     const rest = Math.max(0, today.rest || 0);
     const actAll = Math.max(0, today.active || 0);
     const rb = document.getElementById('cal-bar-rest');
@@ -2498,12 +2438,8 @@
     // Typical-day curves: average per 2h bucket across PAST days only (today excluded,
     // so today's live line stands out against the baseline instead of inflating it).
     //
-    // Split into no-coffee and coffee-day curves. Blended into one line, the
-    // caffeinated entries (habitually ~11:00) dragged the early afternoon up to
-    // "Sharp" on every day, including days with no coffee — the average described
-    // a day that never happens. Entries outside the 1–5 scale are legacy 1–10
-    // values (2026-05-26 → 05-28) and are dropped; previously yOf() clamped them
-    // and they rendered pinned at the top.
+    // Coffee and no-coffee days get separate curves: blended, coffee skews the afternoon.
+    // Values outside the 1–5 scale are legacy 1–10 entries and are dropped.
     const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
     const dayStartMs = dayStart.getTime();
 
@@ -2803,22 +2739,15 @@
       liveDayNaps = Array.isArray(dayNaps) ? dayNaps : [];
       liveDayActivities = Array.isArray(dayActs) ? dayActs : [];
 
-      // Filter 24h series to today only. Used to fall back to the whole
-      // rolling window when today's slice was empty — but that silently
-      // repainted yesterday's tail-end data as if it were today's, which is
-      // exactly the "no sync since last night" bug (2026-09-22): the graph
-      // kept showing part of the day before, labelled as current. No sync
-      // yet today now means no data, shown as no data.
+      // Today only: no sync yet today means no data, never yesterday's tail.
       const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
       const todaySeries = series24.filter(p => p.minute_ts >= todayStart.getTime());
       liveDaySeries = todaySeries;
 
       const startLevel = liveDaySeries.length > 0 ? Math.max(...liveDaySeries.map(p => p.level)) : null;
 
-      // Freshness: is there real data covering the gap between the last
-      // strap/phone sync and now, or is the latest available row actually
-      // from an earlier day being shown as if it were live. See
-      // health_summary()/vitals_snapshot() in api.py for the definitions.
+      // Freshness: does real data cover now, or is the latest row from an earlier day?
+      // See health_summary() (routers/overview.py) and vitals_snapshot() (routers/vitals.py).
       const biochargeFresh = !!(summary && summary.biocharge_fresh);
       const vitalsFresh    = !!(vitals && vitals.fresh);
       const sleepFresh     = !!(summary && summary.sleep_fresh);

@@ -38,14 +38,14 @@ def init_workout_tables() -> None:
         con.execute(
             "CREATE INDEX IF NOT EXISTS idx_workout_session_date "
             "ON workout_session(date_iso)")
-        # Migration: post-workout notes + pain flags (added 2026-07-20).
+        # Migration: post-workout notes + pain flags.
         # Older DBs predate these columns — add them if missing.
         cols = {r[1] for r in con.execute("PRAGMA table_info(workout_session)")}
         if "notes" not in cols:
             con.execute("ALTER TABLE workout_session ADD COLUMN notes TEXT")
         if "pain_flags" not in cols:
             con.execute("ALTER TABLE workout_session ADD COLUMN pain_flags TEXT")
-        # Body-map soreness (added 2026-07-22). One row per area per log; the
+        # Body-map soreness. One row per area per log; the
         # newest row inside the decay window is what counts as "current".
         con.execute("""
             CREATE TABLE IF NOT EXISTS muscle_soreness (
@@ -55,7 +55,7 @@ def init_workout_tables() -> None:
                 note     TEXT,
                 PRIMARY KEY (ts, area)
             )""")
-        # Type of feeling (added 2026-09-24): ache · tight · heavy · sharp. Rows from before
+        # Type of feeling: ache · tight · heavy · sharp. Rows from before
         # it (and callers that send a bare severity) have NULL and read as 'ache'.
         sore_cols = {r[1] for r in con.execute("PRAGMA table_info(muscle_soreness)")}
         if "kind" not in sore_cols:
@@ -92,9 +92,8 @@ def init_finance_tables() -> None:
     """Create the API-owned finance tables. Runs once at service start.
     Snapshot model: finance_balance rows are the only source of truth for
     money — nothing else in the system ever mutates a balance. `amount_eur`
-    is stored alongside native `amount` so a later FX rate change never
-    silently rewrites history (FX conversion itself lands in a later phase;
-    Phase 1 is EUR-only so amount_eur == amount)."""
+    is stored alongside native `amount` so adding FX never rewrites history
+    (EUR-only for now, so amount_eur == amount)."""
     con = open_db_rw()
     try:
         con.execute("""
@@ -126,14 +125,14 @@ def init_finance_tables() -> None:
         con.execute(
             "CREATE INDEX IF NOT EXISTS idx_finance_balance_asof "
             "ON finance_balance(as_of)")
-        # Phase 4: holdings for investment accounts. These do not compete with
+        # Holdings for investment accounts. These do not compete with
         # finance_balance — they feed it. An investment account's balance is
         # derived from quantity x price and written back as an ordinary
         # snapshot, so net worth, history, sparklines and the projection keep
         # reading exactly one source of truth. Purely additive: an account with
         # no holdings keeps its entered balance untouched.
         fh.ensure(con)
-        # Phase 2: recurring subscriptions/income. Monthly cadence only — no
+        # Recurring subscriptions/income. Monthly cadence only — no
         # cadence field yet, "input once, appears every month on that day".
         con.execute("""
             CREATE TABLE IF NOT EXISTS finance_sub (
@@ -148,7 +147,7 @@ def init_finance_tables() -> None:
                 created_at   TEXT NOT NULL,
                 FOREIGN KEY (account_id) REFERENCES finance_account(id)
             )""")
-        # Phase 3: wish list. want/need are never stored "current" on the item
+        # Wish list. want/need are never stored "current" on the item
         # itself — finance_wish_rating is the only place they live, so there is
         # exactly one place to update and "current" is always just its latest
         # row per wish_id. That's what makes the want-decay trend possible.
@@ -175,7 +174,7 @@ def init_finance_tables() -> None:
         con.execute(
             "CREATE INDEX IF NOT EXISTS idx_finance_wish_rating_wish "
             "ON finance_wish_rating(wish_id)")
-        # Phase 4: ad-hoc transactions (a purchase, a transfer) — the things the
+        # Ad-hoc transactions (a purchase, a transfer) — the things the
         # subs schedule cannot predict.
         #
         # A transaction NEVER writes finance_balance. It only proposes what the

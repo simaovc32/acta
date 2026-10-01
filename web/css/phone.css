@@ -44,7 +44,7 @@
 }
 
 /* ============================================================
-   MOBILE (Phase 1) — phone layout. Desktop is untouched above.
+   MOBILE — phone layout. Desktop is untouched above.
    Breakpoint 700px covers all phones incl. Nothing Phone 3a
    (~393px CSS width). Inline grid styles on health panels need
    !important to override.
@@ -76,8 +76,7 @@
     justify-content: center; margin-left: auto;
   }
   .brand .refresh-btn svg { width: 13px; height: 13px; }
-  /* battery is no longer PC-only — it is the one thing that silently costs a
-     night of data when it runs out, so it belongs on the phone most of all */
+  /* battery shows on the phone too: running out silently costs a night of data */
   .brand .battery-chip { display: inline-flex !important; flex: none; }
   /* the detection warning matters most on the phone, where sessions actually
      happen — keep it, but drop to the icon+count so it fits beside the rest */
@@ -191,9 +190,7 @@
      Main + Health rebuilt for one thumb. Everything here is scoped to this
      media block — the desktop layout is untouched. */
 
-  /* --- bottom nav: 4 equal cells, icon over label. The old flex row's
-     content was 399px inside a 373px bar at 393px wide, so "Workout" was
-     clipped. A grid cannot overflow. --- */
+  /* --- bottom nav: 4 equal cells, icon over label. A grid, so labels can't overflow. --- */
   .bottom-tabs {
     left: 10px; right: 10px; max-width: none;
     transform: none;

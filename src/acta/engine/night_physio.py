@@ -8,14 +8,14 @@ Sources (same tables + filters sleep_score.py uses):
   HUAMI_HEART_RATE_RESTING_SAMPLE  — device-computed RHR, ~1 sample at wake
   HUAMI_EXTENDED_ACTIVITY_SAMPLE   — per-minute HR (min sleeping HR)
   GENERIC_HRV_VALUE_SAMPLE         — HRV ms samples
-TIMESTAMP UNITS DIFFER PER config.GADGETBRIDGE_DB TABLE (verified 2026-07-19):
+TIMESTAMP UNITS DIFFER PER config.GADGETBRIDGE_DB TABLE:
   HUAMI_EXTENDED_ACTIVITY_SAMPLE   → epoch SECONDS
   HUAMI_HEART_RATE_RESTING_SAMPLE  → epoch MILLISECONDS
   GENERIC_HRV_VALUE_SAMPLE         → epoch MILLISECONDS
 (acta *_ts are always milliseconds.)
 
 Incremental + idempotent: fills nights present in sleep_score but missing in
-night_physio. Called from sensors.py each morning; safe to run any time:
+night_physio. Called from the ingest pipeline; safe to run any time:
     python -m acta.engine.night_physio            # update (backfills on first run)
     python -m acta.engine.night_physio --show     # print the series
 """
@@ -76,13 +76,9 @@ def _night_values(gb: sqlite3.Connection, bed_ms: int, wake_ms: int):
     return resting_hr, min_sleep_hr, hr_dip, hrv_mean
 
 
-# Nights at the tail are refreshed even when a row already exists, not just
-# filled when missing. These values are computed over sleep_score's own
-# bedtime_ts -> waketime_ts window, and ingest now re-scores the last
-# RESCORE_TAIL_NIGHTS nights as fuller data arrives (a truncated hypnogram, or
-# post-hypnogram sleep that reached the activity stream late). When that window
-# moves, a row written from the old one is measuring the wrong hours — so it has
-# to move with it. INSERT OR REPLACE makes re-running free.
+# Tail nights are refreshed even when a row exists: ingest re-scores the last
+# RESCORE_TAIL_NIGHTS nights as fuller data arrives, and these values follow
+# sleep_score's bedtime/waketime window. INSERT OR REPLACE makes re-running free.
 REFRESH_TAIL_NIGHTS = 2
 
 
@@ -198,16 +194,10 @@ def _last_vs_baseline(rows, run_nights=3, min_hist=7):
     return recent, baseline
 
 
-# Acute-deterioration detector (fast 2-night nosedive), complements the slower
-# 3-night sustained rule in recovery_alarm(). The sustained rule structurally
-# misses a "was fine, then fell off a cliff" pattern: one good night at the start
-# of its 3-night window blocks every signal from firing, even when the latest
-# night is dramatically bad and the direction is alarming. This catches that.
-# Backtested 2026-08-08 over 103 nights: ~8% of nights trip a soft acute nudge
-# (≈once every 12 days); 4 nights tripped both signals at once — those were the
-# genuine autonomic hits (e.g. 2026-06-21 RHR 65 / HRV 38). Tuned to be earlier
-# than sustained, not noisier: the window must be monotonically worsening, so a
-# single random bad night can't trip it — only a real slide.
+# Acute-deterioration detector (fast 2-night nosedive), complementing the slower
+# 3-night sustained rule in recovery_alarm(), which misses a sudden cliff after a
+# good night. Tuned to be earlier, not noisier: the window must be monotonically
+# worsening, so a single random bad night can't trip it.
 ACUTE_RUN      = 2      # nights that must all be past-threshold AND worsening
 ACUTE_HRV_SOFT = 0.85   # every night in the window <= baseline × this
 ACUTE_HRV_HARD = 0.80   # latest night <= baseline × this
@@ -408,8 +398,7 @@ def recent_pain(days=None, now=None):
     Reads the body map (`muscle_soreness`), which is also where the workout
     finish-screen pain chips are mirrored — one source, one reset rule. Soreness
     is a same-day self-report and does not carry over: if it still hurts
-    tomorrow, it gets logged again (2026-07-25; was a rolling 4-day window over
-    workout_session.pain_flags, which kept repeating a two-day-old flag).
+    tomorrow, it gets logged again.
 
     Surfaced by the readiness card and morning digest as a transparent rule —
     never fed into the score. `days` is accepted and ignored for call
@@ -501,9 +490,8 @@ def readiness(now=None):
     parts["hrv"] = round(hrv_c)
 
     # Yesterday's load: fresh = 100, harder day = lower. Prefer session-RPE
-    # (RPE × minutes) — it counts cardio (the pool session volume ignored) and
-    # reflects intensity, not just tonnage. Fall back to the volume term when a
-    # strength session had no RPE and there was no cardio, so nothing regresses.
+    # (RPE x minutes), which counts cardio and intensity; fall back to the volume
+    # term for a strength session with no RPE and no cardio.
     if srpe > 0:
         ref = srpe_base or SRPE_REF
         load_c = max(20.0, min(100.0, 100 - 60 * (srpe / ref)))
@@ -537,12 +525,9 @@ def readiness(now=None):
 
 DAY_KEYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-# Trim tiers mirror the readiness bands: green/amber (>=55) is left as-is —
-# per readiness-recovery.md the 55-74 band can still be a genuinely good day,
-# so nothing is cut there. Red (<55) is split into three cut sizes. Purely a
-# function of the score, no modality-specific logic and no per-type history
-# (training_response.py is still data-starved for that) - see 2026-09-15
-# session notes.
+# Trim tiers mirror the readiness bands: green/amber (>=55) is left as-is, since
+# the 55-74 band can still be a good day. Red (<55) is split into three cut sizes,
+# purely from the score (no per-type history yet).
 TRIM_TIERS = [(55, 0), (40, 20), (25, 40), (0, 60)]
 
 

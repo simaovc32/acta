@@ -1,11 +1,8 @@
 """
-Sleep Score – §3, §4, §5, §7 of SLEEP_SCORE_PLAN.md
+Sleep Score – @1 hypnogram decoding, @2 score components, @3 why text.
 
-A library, not a program: acta/ingest.py owns the scoring run and writes to
-acta.db. The standalone main() (which wrote sleep_nights.json), build_output()
-and tune_weights() were removed on 2026-08-29 — they were dead, pointed at
-Windows paths from the original laptop, and tune_weights in particular re-fitted
-WEIGHTS to subjective morning ratings, which is the one thing Acta must never do.
+A library, not a program: acta/pipeline/ingest.py owns the scoring run and
+writes to acta.db. WEIGHTS are never re-fitted to subjective morning ratings.
 """
 
 import datetime
@@ -22,14 +19,12 @@ REG_WINDOW  = 14   # regularity window — adapts within ~2 weeks when schedule 
 MIN_BL      = 7    # minimum history nights before using personal baseline
 
 # ── Scoring v2 (forward-only; the gate lives in ingest.score_nights) ──────────
-# Two changes shipped 2026-09-07, both driven by the alcohol-night finding that
-# the physio component barely moved on a night RHR rose 8 bpm and HRV fell 44%:
-#   1. score_physio(v2=True) drops hr_dip (anti-correlated with recovery: r=+0.73
-#      with RHR in 133 nights) and temp_drop (wrist skin temp, heavily confounded),
-#      and weights the two real signals so they drive the score instead of being
-#      one-fifth each of a flat mean.
-#   2. The flat alcohol penalty halves (-4/-18 -> -2/-9): with physio now doing
-#      real work, the full flat penalty double-counted the autonomic hit.
+# Two changes, for nights on/after SLEEP_SCORE_V2_START:
+#   1. score_physio(v2=True) drops hr_dip (it tracks RHR rather than recovery)
+#      and temp_drop (wrist skin temp, heavily confounded), and weights the two
+#      real signals so they drive the score instead of a flat mean.
+#   2. The flat alcohol penalty halves (-4/-18 -> -2/-9): with physio doing real
+#      work, the full penalty would double-count the autonomic hit.
 SLEEP_SCORE_V2_START            = "2026-09-07"
 PHYSIO_V2_WEIGHTS               = {"resting_hr": 0.45, "hrv_mean": 0.40, "resp_std": 0.15}
 PHYSIO_V2_SPEC                  = [("resting_hr", False), ("hrv_mean", True), ("resp_std", False)]
@@ -37,7 +32,7 @@ ALCOHOL_SCORE_PENALTY_PER_UNIT_V2 = 2.0
 ALCOHOL_SCORE_PENALTY_CAP_V2      = 9.0
 
 
-# ── §3  Hypnogram decoding ─────────────────────────────────────────────────────
+# ── @1  Hypnogram decoding ─────────────────────────────────────────────────────
 
 def parse_hypnogram(blob):
     best = []
@@ -81,9 +76,8 @@ def session_utc_offset(blob):
 def session_base_date(blob):
     """Device-local midnight of the day *before* the session's own day.
 
-    The header epoch is already that local midnight, so no flooring is needed.
-    Flooring it in a fixed home zone was a no-op at home but shifted every
-    session recorded abroad (-23h at UTC+2), landing nights a day early.
+    The header epoch is already that local midnight, so no flooring is needed
+    (flooring in the home zone would shift nights recorded abroad by a day).
     """
     t1 = struct.unpack_from("<I", blob, 0)[0]
     t2 = struct.unpack_from("<I", blob, 4)[0]
@@ -121,7 +115,7 @@ def _hm(minutes):
     return f"{h}h{m:02d}m"
 
 
-# ── §4.1  Efficiency (weight 30, absolute curve) ───────────────────────────────
+# ── @2.1  Efficiency (weight 25, absolute curve) ───────────────────────────────
 
 def extract_waso(segs):
     onset_idx = next((i for i, (_, _, c) in enumerate(segs) if c != 7), len(segs) - 1)
@@ -170,7 +164,7 @@ def score_alcohol_penalty(units, per_unit=ALCOHOL_SCORE_PENALTY_PER_UNIT,
 
     per_unit/cap default to the v1 figures (-4/-18); score_nights passes the v2
     figures (-2/-9) for nights on/after SLEEP_SCORE_V2_START, where score_physio
-    now carries the measured autonomic hit and the flat term only needs to cover
+    carries the measured autonomic hit and the flat term only needs to cover
     what sensors miss (next-day cognition, strap-off nights).
     """
     if units <= 0:
@@ -178,7 +172,7 @@ def score_alcohol_penalty(units, per_unit=ALCOHOL_SCORE_PENALTY_PER_UNIT,
     return -min(per_unit * units, cap)
 
 
-# ── §4.2  Regularity (weight 20) ──────────────────────────────────────────────
+# ── @2.2  Regularity (weight 20) ──────────────────────────────────────────────
 
 def score_regularity(night, history):
     """Returns (score_0_100 | None, signed_dev_min | None)."""
@@ -191,7 +185,7 @@ def score_regularity(night, history):
     return _inv_u(tonight, center, 30, 90), dev
 
 
-# ── §4.3  Duration (weight 15) ────────────────────────────────────────────────
+# ── @2.3  Duration (weight 15) ────────────────────────────────────────────────
 
 def score_duration(asleep, history):
     """Returns (score_0_100, baseline_center_min)."""
@@ -207,15 +201,13 @@ def score_duration(asleep, history):
     return _inv_u(asleep, center, 30.0, zero_band), center
 
 
-# ── §4.4  Stage balance (weight 25; internally 15 = deep 8 + REM 7) ───────────────────
+# ── @2.4  Stage balance (weight 25; internally 15 = deep 8 + REM 7) ───────────────────
 
 def score_stages(deep, rem, asleep, history):
     """Returns (pts_0_15, deep_prop, rem_prop, deep_baseline, rem_baseline)."""
     if asleep == 0:
-        # Baselines must match the thin-history fallback below (0.25 / 0.25).
-        # This branch used to hand back 0.08 for REM, so the same function held
-        # two opinions about a typical REM share — and generate_why would have
-        # written "REM below your normal (8%)" off a number nothing else uses.
+        # Baselines must match the thin-history fallback below (0.25 / 0.25), so the
+        # function holds one opinion about a typical REM share.
         return 0.0, 0.0, 0.0, 0.25, 0.25
     dp = deep / asleep
     rp = rem  / asleep
@@ -230,13 +222,13 @@ def score_stages(deep, rem, asleep, history):
         rc = _med(rvals)
         rz = max(0.20, _mad(rvals) * 2.5)
     else:
-        rc, rz = 0.25, 0.20   # fallback: ~25% REM (matches corrected data)
+        rc, rz = 0.25, 0.20   # fallback: ~25% REM
     deep_pts = _inv_u(dp, dc, 0.05, dz) * 8 / 100
     rem_pts  = _inv_u(rp, rc, 0.05, rz) * 7 / 100
     return deep_pts + rem_pts, dp, rp, dc, rc
 
 
-# ── §4.5  Physiological recovery (weight 15) ──────────────────────────────────
+# ── @2.5  Physiological recovery (weight 15) ──────────────────────────────────
 
 def fetch_physio(con, bedtime, waketime):
     bed_s,  wake_s  = int(bedtime.timestamp()),  int(waketime.timestamp())
@@ -339,7 +331,7 @@ def score_physio(physio, history, v2=False):
     return statistics.mean(valid) * 15 / 100, sub_scores
 
 
-# ── §7  Why text generators ────────────────────────────────────────────────────
+# ── @3  Why text generators ────────────────────────────────────────────────────
 
 def _why_efficiency(eff_pct, onset_latency, waso, toilet_forgiven, positive):
     if positive:

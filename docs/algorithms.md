@@ -10,7 +10,7 @@ A few principles apply throughout:
   resting HR of 50 is great for one person and a warning sign for another.
 - **Forward-only changes.** When a formula changes, it takes effect from a gate date
   (`SLEEP_SCORE_V2_START`, `HR_ZONE_TOP_START`, `NAP_DETECT_START`, …). Earlier days keep
-  the model they were computed under, so a full replay reproduces history exactly.
+  the model they were computed under.
 - **No fitting to self-reports.** Mood and "how did I sleep" ratings are shown, described
   and correlated, never used as a training target or a score input.
 
@@ -80,9 +80,9 @@ whether a night was normal *for you*.
 The physiology weights come from data. The first version averaged five sub-scores equally.
 On one heavy-drinking night, resting HR rose by 8 bpm and HRV fell by 44%, and the
 component lost only 0.3 points. The reason was `hr_dip` (resting HR minus the night's
-minimum), which turned out to be *positively* correlated with a bad night (r = +0.73 with
-resting HR over 133 nights), so it cancelled out the real signal. It was dropped, and the
-two signals that do track recovery now carry the weight.
+minimum): it tracks resting HR (r = +0.73 over 133 nights), so a bigger dip went with a
+worse night and cancelled out the real signal. It was dropped, and the two signals that do
+track recovery now carry the weight.
 
 The strap stops recording sleep stages once you get up, even if you go back to sleep.
 Ingest recovers those minutes from the raw activity stream (a minute flagged as sleep,
@@ -104,8 +104,9 @@ for that day only, never a change to the plan.
 
 The **recovery alarm** watches the same signals for two shapes:
 
-- **Sustained:** 2 or 3 of the last 3 nights past threshold (RHR ≥ baseline + 5 bpm,
-  HRV ≤ 90% of baseline, or sleep 5 points below baseline).
+- **Sustained:** a signal fires when all of the last 3 nights are past its threshold
+  (RHR ≥ baseline + 5 bpm, HRV ≤ 90% of baseline, sleep 5 points below baseline). Two of
+  the three signals firing is a soft alarm; all three is a hard one.
 - **Acute:** 2 consecutive nights getting worse, with HRV ≤ 85% of baseline (80% on the
   latest night) or RHR +3 bpm (+5 on the latest).
 
@@ -140,7 +141,7 @@ Two published estimators, reported as a range rather than one false-precision nu
   activity index built from PAI zone minutes and confirmed workouts.
 
 The headline value is `0.55·Uth + 0.45·Nes`, with a percentile from the FRIEND registry.
-When the two estimates disagree by more than about 10 points, the gap is shown instead of
+When the two estimates disagree by more than 5 points, the gap is shown instead of
 hidden. **Heart-rate recovery** (the drop 1 and 2 minutes after the effort ends, median of
 recent confirmed runs) is a separate readout. A step-test HRR equation was tried as a third
 estimator and rejected: after a maximal field effort it read about 20 points low.
@@ -162,9 +163,9 @@ biocharge, since both come from the same HR stream.
 
 ## Lag mining: `insights/lag_mining.py`
 
-Every objective predictor (17 of them) is tested against every target (10), at lags of 0,
-1 and 2 nights, over the whole history. That is about 350 Pearson correlations per run. A
-finding must:
+Every objective predictor (16 of them) is tested against every target (9), at lags of 0,
+1 and 2 nights, over the whole history. That is about 420 Pearson correlations per run,
+after the definitional pairs are skipped. A finding must:
 
 1. have at least 20 paired nights,
 2. clear |r| ≥ 0.15 (a size floor, not the test), and
@@ -206,7 +207,7 @@ around 50, near-daily training). What's personal and what's fixed:
 | VO₂max | uses your measured max HR, resting HR, waist and activity | the published equations themselves |
 | Calories | your BMR, max HR and resting HR | the calibration factor `k` (1.0, uncalibrated) |
 
-The fixed values live as named constants at the top of each module, with a comment saying
-where each one came from. Nothing tunes them automatically. That's deliberate: a model
+The fixed values live as named constants at the top of each module, with a comment
+explaining what each one does. Nothing tunes them automatically. That's deliberate: a model
 that fitted itself to whatever it saw would drift towards telling you what you already
 believe.

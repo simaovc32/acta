@@ -86,9 +86,8 @@ CREATE TABLE IF NOT EXISTS user_log (
 
 def open_acta():
     os.makedirs(os.path.dirname(config.ACTA_DB), exist_ok=True)
-    # timeout=30 (vs sqlite3's 5s default) — see api.py's open_db_rw() for
-    # why: this timer collided with an API write and both sides failed with
-    # "database is locked" (confirmed live, 2026-09-16).
+    # timeout=30 (vs sqlite3's 5s default), same as deps.open_db_rw(), so a
+    # concurrent API write doesn't fail with "database is locked".
     con = sqlite3.connect(config.ACTA_DB, timeout=30)
     con.executescript(DDL)
     migrate(con)
@@ -124,10 +123,8 @@ def set_state(con, key, value):
 def source_fingerprint():
     """Cheap identity of the source file — modification time and size, no read.
 
-    The gate in front of snapshot_and_hash(). Copying ~14 MB to /tmp and
-    SHA-256-ing it in order to discover that nothing changed was the entire cost
-    of a no-op run, and ~95% of runs are no-ops: at the old 5-minute cadence that
-    was ~4 GB/day of pointless disk writes, and /tmp is on the same disk.
+    The gate in front of snapshot_and_hash(): most runs are no-ops, and copying
+    and hashing the whole export just to find that out is wasted disk I/O.
 
     Deliberately NOT a replacement for the content hash. mtime+size says "this
     file has not been touched"; only the hash can say "the bytes are the same",
@@ -137,9 +134,7 @@ def source_fingerprint():
 
     The event log is part of the input too: biocharge and the sleep score read
     coffee, alcohol and workouts from it, and the API triggers an ingest right
-    after appending one. Fingerprinting the strap export alone made that
-    trigger a no-op, so a logged coffee only reached the curve at the next
-    strap sync.
+    after appending one, so a logged coffee reaches the curve right away.
     """
     parts = []
     for path in (config.GADGETBRIDGE_DB, config.EVENTS_PATH):
@@ -217,16 +212,10 @@ def write_run_row(acta, started_at, finished_at, src_hash,
 
 # ── Session loader ────────────────────────────────────────────────────────────
 
-# The strap stops writing a hypnogram once you get up, and never starts a second
-# one if you go back to sleep -- verified on 2026-08-18, where the final sync
-# came 17 hours after waking and still ended at 05:11. But the sleep IS recorded,
-# in HUAMI_EXTENDED_ACTIVITY_SAMPLE: RAW_KIND 120 marks it, on 349 of 351 minutes
-# of hypnogram-confirmed sleep. Across 118 nights, 6 lose sleep this way -- 5.3
-# hours in total, 92 minutes on the worst night.
-#
-# Only the duration is recoverable. RAW_KIND carries no stage information, so the
-# extension has no deep/REM breakdown, which is why asleep_staged is tracked
-# separately below and stage proportions keep using the hypnogram alone.
+# The strap never starts a second hypnogram if you fall back asleep, but
+# RAW_KIND 120 in HUAMI_EXTENDED_ACTIVITY_SAMPLE still records it. Only the
+# duration is recoverable (no stages), so asleep_staged is tracked separately.
+# These EXT_* constants are mirrored in biocharge.py -- keep both in sync by hand.
 EXT_KIND_SLEEP = 120
 EXT_LOOKAHEAD_MIN = 300   # how far past the recorded wake to look
 EXT_MIN_BLOCK_MIN = 15    # shorter than this is lying still, not a sleep period
@@ -375,17 +364,9 @@ def load_all_sessions(gb_con):
 
 # ── Sleep score computation ───────────────────────────────────────────────────
 
-# Nights at the tail are always re-scored, never just the ones past the
-# watermark. A night is first scored the morning it wakes, from whatever had
-# synced by then -- which can be a truncated hypnogram, or one whose
-# post-hypnogram sleep (extend_sleep_from_activity) is not yet in the activity
-# stream. load_all_sessions() already picks the longest version of each night and
-# score_nights() recomputes it correctly, but the watermark then threw that
-# corrected row away and the partial score stayed in the database forever.
-#
-# Same reasoning, and the same window, as replay_biocharge's yesterday rule:
-# evening and overnight data arrives after the run that first wrote the day.
-# upsert_sleep_score is an upsert keyed on night_of, so re-emitting is free.
+# Tail nights are always re-scored, not just those past the watermark: a night
+# first scored at wake may be missing late-synced data. Same window as
+# replay_biocharge's yesterday rule; upsert_sleep_score makes re-emitting free.
 RESCORE_TAIL_NIGHTS = 2
 
 
@@ -521,16 +502,9 @@ def build_minute_labels(r):
         i = j
     for start, end, sl in runs:
         if sl or (end - start) < BC.SEG_WASO_GAP: continue
-        # The span tells us WHERE a bout of activity is (and filters out noise via
-        # its duration/drain gates). The tag for each MINUTE inside it is scored on
-        # that minute's own HR/intensity — not inherited from the span's peak.
-        #
-        # Inheriting the peak is what made 2026-08-20 paint 09:06-15:44 as
-        # "exertion" (399 of 411 minutes) off an average HR of 85: spans merge
-        # across gaps <= 5 min, so a whole day of light movement fused into one
-        # span and a single intensity spike re-coloured all of it. why_label
-        # drives the chart's orange run AND the trend chart's daily-min filter,
-        # so an over-broad tag distorts both.
+        # The span says WHERE a bout of activity is (and filters noise via its gates);
+        # each minute is tagged from its own HR/intensity, not the span's peak, since
+        # merged spans would otherwise over-tag the chart and the trend filter.
         for s, e, _tag, _ in BC._active_subspans(start, end, activity, drain_log, rhr_bl):
             for t in range(s, e):
                 score = BC.minute_activity_score(*activity.get(t, (0, None, 0))[:2], rhr_bl)
@@ -572,11 +546,8 @@ def replay_biocharge(gb_con, nights, acta, after_night_of, now_iso):
     """
     today = datetime.date.today()
 
-    # Determine carry-forward start level.
-    # anchor_date = last day that will be skipped by the loop below, i.e.
-    # min(after_date, today-1). When after_night_of == today the loop skips
-    # nothing, so we must read from yesterday — not from today's own 23:59
-    # (which would create a circular dependency and inflate the midnight level).
+    # Carry-forward start: anchor_date = min(after_date, today-1), the last day the
+    # loop skips. Never read today's own 23:59 (circular, inflates the midnight level).
     if after_night_of:
         after_date   = datetime.date.fromisoformat(after_night_of)
         # Go back 2 days so yesterday is also recomputed (evening activity arrives
@@ -634,11 +605,8 @@ def replay_biocharge(gb_con, nights, acta, after_night_of, now_iso):
 
         start_level = levels[-1]
 
-    # Consecutive device-local grids don't always meet. Flying east they overlap
-    # and the primary key lets the newer day win; flying west the day gets longer
-    # than 1440 minutes and leaves a gap, stranding rows from the previous grid.
-    # Bridge those minutes so the stored curve stays continuous and nothing from
-    # an older grid survives underneath it.
+    # Device-local grids don't always meet: flying east they overlap (newer day wins
+    # on the key); flying west a gap opens, so bridge it to keep the curve continuous.
     bridged = []
     for i, row in enumerate(bc_rows):
         bridged.append(row)
@@ -752,11 +720,8 @@ def run_ingest(verbose=True):
         except Exception as e:
             print(f"  calories update failed (non-fatal): {e}")
 
-        # PAI session detection. Without this the topbar badge only ever shows
-        # what a manual `python -m acta.engine.pai --scan` last stored, so every new
-        # session would go undetected -- the exact gap the feature exists to
-        # close. Proposes only; nothing is written to events.json here.
-        # Never blocks the pipeline.
+        # PAI session detection on every ingest. Proposes only; nothing is written to
+        # events.json here. Never blocks the pipeline.
         try:
             new = pai.scan(write=True)
             if new:
@@ -817,10 +782,7 @@ def run_ingest(verbose=True):
         return "ok", nights_written, minutes_written
 
     except Exception as e:
-        # A failed run used to leave no trace at all: no ingest_run row, so the
-        # About modal and any monitoring saw only the last SUCCESSFUL run and
-        # reported the pipeline as healthy while it was silently broken. Record
-        # the failure, then re-raise so the exit code still says so.
+        # Record the failure in ingest_run, then re-raise so the exit code still says so.
         if acta is not None:
             try:
                 write_run_row(acta, started_at, datetime.datetime.now(TZ).isoformat(),
@@ -833,8 +795,7 @@ def run_ingest(verbose=True):
         raise
 
     finally:
-        # Both connections used to be closed only on the success path, so an
-        # exception leaked them — and the GB handle pins the snapshot file.
+        # Always close both connections; the GB handle pins the snapshot file.
         for con in (gb_con, acta):
             if con is not None:
                 try:

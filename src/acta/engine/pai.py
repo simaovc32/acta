@@ -1,55 +1,36 @@
 """pai — Huami PAI (Personal Activity Intelligence) as an objective training signal.
 
-Gadgetbridge has been storing HUAMI_PAI_SAMPLE since 2026-04-27 with zero gaps,
-and nothing read it until now. Two jobs here:
+Two jobs here:
 
-  1. Session detection. The readiness load term reads events.json, which is
-     ~91% incomplete: of 23 real sessions PAI recorded, 21 were never logged,
-     so readiness computed load_c=100 ("fully rested") on days the strap saw
-     50+ high-zone minutes. This module finds those sessions and PROPOSES them
-     for confirmation -- it never writes a workout event on its own, because
-     PAI cannot tell football from cycling from a hard uphill walk. Same
-     propose-then-confirm posture the finance tab uses for balances.
+  1. Session detection. Finds training sessions the strap saw but nobody logged
+     and PROPOSES them for confirmation -- it never writes a workout event on its
+     own, because PAI cannot tell football from cycling from a hard uphill walk.
 
   2. Monthly-report summary (see summary()).
 
 WHAT PAI ACTUALLY IS
   PAI_TODAY is the points earned today; PAI_TOTAL is a trailing 7-day sum
-  (verified against sum(last 7 PAI_TODAY) to within ~2 points). Huami's target
-  is 100. PAI_TOTAL is deliberately NOT used in any score: it falls off a cliff
-  when a big day ages out of the 7-day window (2026-08-14: 81.2 -> 08-15: 10.4,
-  a 71-point drop with nothing physiological behind it). Daily earned values
-  and zone minutes are the safe inputs; the rolling total is display-only.
+  (Huami's target is 100). PAI_TOTAL is display-only and never used in a score:
+  it drops sharply when a big day ages out of the window. Daily earned values
+  and zone minutes are the safe inputs.
 
 EFFECT ON BIOCHARGE -- read this before assuming it is nil
-  Confirming a detection appends a workout event, and a workout event is NOT
-  inert to biocharge: it disables the ambient gate over its window and lets
-  inject_manual_activity() fill minutes that have no strap HR. Measured across
-  the 17 stored detections: 5 contain ambient-gated minutes (12 in total) and
-  3 contain minutes with no HR reading (19 in total). An earlier claim in this
-  file that both were always zero was wrong -- it came from a spot check that
-  only looked at minutes with HR >= 125, which excludes by construction the
-  very minutes at issue.
-
-  In practice archived days are still untouched, but by a property of the
-  pipeline rather than of this module: ingest.replay_biocharge only recomputes
-  yesterday onward, so a confirmed event on an older date changes nothing until
-  something forces a full replay (state reset, restore from backup, manual
-  recompute). If such a replay ever runs, those 5 days will shift. That is a
-  known, accepted consequence -- the events are real activity that biocharge
-  arguably should have been billing all along -- but it is not "byte-identical",
-  and any future full recompute should expect the diff.
+  Confirming a detection appends a workout event, which is NOT inert to
+  biocharge: it disables the ambient gate over its window and lets
+  inject_manual_activity() fill minutes with no strap HR. Archived days stay
+  untouched only because ingest.replay_biocharge recomputes yesterday onward;
+  a full replay (reset, restore, manual recompute) will shift those days.
+  That is accepted, but any full recompute should expect the diff.
 
 TIMESTAMPS: HUAMI_PAI_SAMPLE.TIMESTAMP is epoch MILLISECONDS, unlike
-HUAMI_EXTENDED_ACTIVITY_SAMPLE which is SECONDS (see gadgetbridge-integration).
+HUAMI_EXTENDED_ACTIVITY_SAMPLE which is SECONDS (see docs/gadgetbridge.md).
 
 KNOWN LIMITATION -- sessions crossing midnight (open, accepted)
   _session_spans() works on one date's 0..1439 minute grid, so a session
   running 23:00 -> 00:45 is split: the first date yields a span truncated at
   23:59 and the next date's fragment is usually dropped for being under the
-  PAI_TODAY threshold. Confirmed as a live code path; no day in 117 has hit it
-  (closest: 2026-07-03 ending 23:41). Left unfixed by decision -- the user does
-  not train across midnight. Revisit if that changes.
+  PAI_TODAY threshold. Left unfixed by decision: sessions don't cross midnight
+  in practice. Revisit if that changes.
 
 CLI:
     python -m acta.engine.pai                 # detect + list pending, write nothing
@@ -64,64 +45,39 @@ from acta import config
 from acta.engine import biocharge as BC
 
 TZ = config.TZ
-# and only 23 of 116 days clear 5 -- the background is genuinely near-zero, so
-# this cleanly separates sessions from ordinary movement without tuning.
+# Days without a session rarely clear 5 PAI, so this separates sessions from
+# ordinary movement without tuning.
 SESSION_PAI_MIN = 5.0
 
-# Bout location. Thresholds come from biocharge.minute_activity_score() rather
-# than being redefined here, so "exertion" cannot drift between the two modules.
+# Bout location. Thresholds come from biocharge.minute_activity_score(), so
+# "exertion" cannot drift between the two modules.
 #
-# The span is anchored on EXERTION minutes (score 2, HR > rhr_bl + 78), not on
-# any active minute. Anchoring on 'active' reproduces the span-chaining bug
-# biocharge hit in 2026-08: bridging "any active minute within the gap" advances
-# one minute at a time, so an evening of intermittent pottering fuses into a
-# single span -- first run of this module produced a 582-minute "session".
-# Exertion minutes are rare enough that bridging them cannot chain that way.
-# A bout is only proposed once its exertion has clearly stopped. Without this a
-# run detected mid-stride would be frozen as a 40-minute session and the rest of
-# it lost. Not a cap on how long an activity may be -- a three-hour match is
-# detected as three hours, it simply surfaces this long after you finish.
+# The span is anchored on EXERTION minutes (score 2), not any active minute:
+# bridging active minutes chains an evening of light movement into one span.
+# A bout is proposed only once its exertion has clearly stopped (not a
+# duration cap -- a long match is still detected in full, just after it ends).
 QUIET_TAIL_MIN = 20
 
-# Where the effort stops and the cooldown starts.
-#
-# A bout is detected as one span because MERGE_GAP_MIN bridges short lulls --
-# correct for football's stoppages, but it also swallows the stretching after a
-# run. Measured on 2026-08-22: detected as 53 minutes when the run was 27, and
-# priced 41% high (696 kcal vs 495), because heart rate stays elevated through
-# recovery long after the energy cost has dropped.
-#
-# Cadence separates them exactly. That run was 27 min at >=100 steps/min and
-# mean HR 169, then 24 min below it at mean HR 123 -- 27 being precisely what
-# the user reported doing.
-#
-# Applied to the TAIL ONLY, never to the middle. Football is bursts of sprinting
-# between walking, and splitting on every cadence dip would shred a match into
-# fragments; trimming only the trailing cooldown leaves the middle intact.
+# Where the effort stops and the cooldown starts. MERGE_GAP_MIN bridges short
+# lulls (right for football), but also swallows the cooldown after a run, which
+# HR keeps elevated. Cadence separates them, applied to the TAIL ONLY so a
+# match's bursts and walks aren't shredded into fragments.
 WORK_CADENCE_MIN = 100    # steps/min that counts as sustained effort
 MERGE_GAP_MIN = 10    # bridge lulls within a session (halftime, set rest)
 MIN_SPAN_MIN = 10     # shorter than this is noise, not a session
 MIN_SPAN_ELEVATED = 5  # a span needs this many exertion-grade minutes to count
 
-# Intensity inference from the zone mix, mapped to the labels the readiness
-# sRPE proxy already understands (INTENSITY_RPE in night_physio). A starting
-# guess only -- the confirmation UI lets it be corrected, so these thresholds
-# aim to minimise corrections, not to be authoritative.
+# Intensity inference from the zone mix, mapped to night_physio.INTENSITY_RPE
+# labels. A starting guess the confirmation UI lets the user correct.
 INTENSITY_HIGH_MIN = 15   # high-zone minutes -> "intenso"
 INTENSITY_HIGH_ANY = 5    # any real high-zone time -> at least "moderado"
 INTENSITY_MOD_MIN = 10    # moderate-zone minutes -> "moderado"
 
-# Activity picker. PAI sees heart-rate zones, never *what* you were doing, so
-# the type is always chosen by the user -- these are the options offered.
-#
-# Each entry is (slug, display label, canonical biocharge kind). The split is
-# deliberate: biocharge.ACTIVITY_HR_OFFSET understands exactly five kinds
-# (cardio/sport/strength/walk/other) and falls back to "other" (25 bpm) for
-# anything else, so storing kind="football" would silently mis-price a
-# strap-less session at 25 bpm instead of sport's 45. Keeping kind canonical
-# also stops training_response.py's per-type aggregation (which needs >=3
-# sessions of a kind before it reports) from fragmenting into categories of one.
-# The specific label is preserved separately for display and reporting.
+# Activity picker: PAI never knows *what* you did, so the user picks it.
+# Entries are (slug, display label, canonical biocharge kind). kind stays one of
+# biocharge.ACTIVITY_HR_OFFSET's five kinds so strap-less sessions are priced
+# right and training_response's per-type aggregation doesn't fragment; the
+# specific label is stored separately for display.
 ACTIVITY_LABELS = [
     ("football", "Football", "sport"),
     ("padel",    "Padel",    "sport"),
@@ -248,11 +204,9 @@ def daily(gb: sqlite3.Connection, offs: dict = None) -> dict:
     'Last row' is wrong whenever the device's own midnight falls inside the
     Lisbon day, which happens on timezone-transition days: the device resets
     PAI_TODAY to 0 at its local midnight, so a naive last-row read reports 0
-    for a day that had real activity. Verified on 2026-08-03 (device on UTC+2,
-    reset at Lisbon 23:10, offset flipped back at 23:50): last row said 0.00,
-    true value 4.58. Bucketing by the device's own UTC_OFFSET does not fix it
-    either -- the double midnight zeroes the last device-day row too -- so the
-    max is the reliable reading. Within an ordinary day the series is monotonic,
+    for a day that had real activity. Bucketing by the device's own UTC_OFFSET
+    doesn't help either (the double midnight zeroes that row too), so the max
+    is the reliable reading. Within an ordinary day the series is monotonic,
     so max and last agree and nothing changes.
 
     Today's entry is partial until midnight; callers comparing whole days
@@ -316,11 +270,8 @@ def _session_spans(gb: sqlite3.Connection, date_str: str) -> list:
         if len(g) < MIN_SPAN_ELEVATED:
             continue
         s, e = g[0], g[-1] + 1
-        # Trim trailing minutes the HR sensor never read. HEART_RATE 255 is the
-        # strap's no-reading sentinel (7.5% of all samples) and biocharge maps it
-        # to None, but the span still ran to the last exertion minute THROUGH the
-        # dropout -- on 2026-08-22 that padded a bout by 9 minutes and inflated
-        # both its duration and its calorie figure.
+        # Trim trailing minutes the HR sensor never read (255 sentinel, None here),
+        # so a dropout doesn't pad the span's duration and calorie figure.
         while e > s and (e - 1) in activity and activity[e - 1][1] is None:
             e -= 1
         if (e - s) < MIN_SPAN_MIN:
@@ -358,13 +309,8 @@ def _work_end(activity, start: int, end: int) -> int:
     into fragments. Only the trailing run of quiet minutes is trimmed.
 
     Walking back to the last sustained-cadence minute already steps over any
-    number of quiet minutes, however long the lull. There used to be a
-    WORK_TAIL_TOL_MIN counter here that claimed to allow short lulls; it could
-    never fire, because the loop breaks on the first cadence hit regardless. It
-    was removed on 2026-08-29 rather than implemented: making it real would mean
-    "stop after N consecutive quiet minutes", a stricter rule that would move a
-    number already validated against 2026-08-22 (27 min of running correctly
-    separated from a 53-minute detected span).
+    number of quiet minutes, however long the lull, so there is deliberately no
+    lull-tolerance counter.
     """
     last = None
     for m in range(end - 1, start - 1, -1):
@@ -379,10 +325,8 @@ def _work_end(activity, start: int, end: int) -> int:
 def infer_intensity(min_high: int, min_mod: int) -> str:
     """Map the day's zone mix onto the labels night_physio.INTENSITY_RPE reads.
 
-    High-zone minutes are checked before moderate ones and with a low floor: a
-    day with 14 high-zone minutes and a 177 bpm peak is not 'leve' just because
-    it happened to log few moderate minutes, which is what a moderate-first
-    rule produced on 2026-05-04.
+    High-zone minutes are checked before moderate ones and with a low floor, so
+    a hard day isn't labelled 'leve' just because it logged few moderate minutes.
     """
     hi, mod = (min_high or 0), (min_mod or 0)
     if hi >= INTENSITY_HIGH_MIN:
@@ -580,12 +524,8 @@ def scan(write: bool = False, since: str = None) -> list:
         acta.close()
 
 
-# A detection nobody answered for this long is never going to be answered --
-# by then the user cannot remember whether they did it, which is exactly why 13 of
-# the first 18 were dismissed. It is DISMISSED, never deleted: the row stays,
-# it moves to the Dismissed tab, and the existing RESTORE button undoes it. A
-# delete would be irreversible, and losing user data silently is the one thing
-# this codebase is most careful about.
+# A detection unanswered this long won't be answered. It is DISMISSED, never
+# deleted: it moves to the Dismissed tab and RESTORE undoes it.
 EXPIRE_PENDING_DAYS = 30
 
 
@@ -597,12 +537,9 @@ def _backfill_work(acta, gb) -> int:
     confirmed. Recomputed from the same detector, so backfilled rows and new
     ones mean the same thing.
     """
-    # Every row, not just the ones missing work_min: the detector's span itself
-    # changed when dead-sensor minutes started being trimmed, so a row written
-    # earlier still carries the old inflated duration. Re-deriving from the same
-    # detector keeps stored rows and freshly detected ones meaning the same
-    # thing. events.json is deliberately NOT rewritten -- it drives biocharge,
-    # and the detection row is a display record.
+    # Every row, not just those missing work_min, so stored and freshly detected
+    # rows come from the same detector and mean the same thing. events.json is
+    # never rewritten -- it drives biocharge; the detection row is a display record.
     rows = acta.execute(
         "SELECT id, date, start_min, duration_min FROM pai_detection").fetchall()
     if not rows:

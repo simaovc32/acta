@@ -119,19 +119,11 @@ def sleep_stages(date: Optional[str] = None):
                     "start_ts":  s_ms,
                     "end_ts":    e_ms,
                 })
-            # Sleep the hypnogram never recorded (see ingest.extend_sleep_from_
-            # activity). Without this the chart stops at the strap's last
-            # hypnogram minute while the same screen reports a later wake time
-            # and a larger total -- the numbers and the picture disagreed.
-            #
-            # The recovered stretch is drawn as light sleep, matching what
-            # Gadgetbridge itself shows. Be clear that this is a DISPLAY choice,
-            # not a measurement: RAW_KIND is 120 for deep, light and REM alike,
-            # and SLEEP/DEEP_SLEEP/REM_SLEEP are constant sentinels, so the
-            # activity stream carries no stage information whatsoever. The stats
-            # stay honest -- light_min is untouched and the recovered minutes are
-            # tracked separately in sleep_score.ext_sleep_min, so stage
-            # percentages are still computed from the hypnogram alone.
+            # Sleep the hypnogram never recorded (see ingest.extend_sleep_from_activity),
+            # so the chart ends at the same wake time the stats report. Drawn as light
+            # sleep (Gadgetbridge's convention) as a DISPLAY choice only: the activity
+            # stream has no stage information, light_min is untouched, and stage
+            # percentages come from the hypnogram alone.
             con2 = open_db()
             try:
                 ext = con2.execute(

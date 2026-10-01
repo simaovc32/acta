@@ -67,8 +67,8 @@ def append_events_atomic(new_events: list[dict], *, skip_if=None) -> bool:
     """Append events to events.json under an exclusive lock, atomically.
 
     The single writer for this file. Every path that adds an event goes through
-    here — workouts, PAI confirms, and the coffee/alcohol modifiers — because the
-    naive read-modify-write they used to do individually is unsafe in two ways:
+    here — workouts, PAI confirms, and the coffee/alcohol modifiers — because a
+    naive read-modify-write is unsafe in two ways:
 
       * Lost updates. Two writers dispatched to the threadpool (an assistant coffee
         and a PAI confirm, say) both read N events and both write N+1, so one is
@@ -113,17 +113,9 @@ def write_event_only(dt_str: str, duration_min: int, kind: str,
                      label: Optional[str] = None) -> None:
     """Append one workout event to events.json, atomically and under a lock.
 
-    The read-modify-write here used to be unguarded, which loses events under
-    concurrency: two confirms dispatched to the threadpool both read N events
-    and both write N+1, so one is gone for good. Worse, the old code truncated
-    the real file with open(...,"w"), so ingest reading mid-write got a
-    JSONDecodeError -- and biocharge.load_events() only catches
-    FileNotFoundError, so that aborts the run.
-
-    Two guards: an exclusive flock over the whole read-modify-write (so
-    concurrent writers serialise), and a write to a temp file followed by
-    os.replace (atomic on POSIX, so a reader ever sees either the old complete
-    file or the new one, never a truncated one).
+    Goes through append_events_atomic (exclusive flock + temp file and
+    os.replace), so concurrent writers can't lose events and a reader never
+    sees a truncated file.
     """
     event = {
         "datetime":     dt_str,
@@ -150,9 +142,6 @@ ETHANOL_G_PER_ML = 0.789
 def alcohol_units_for_log(item: Optional[dict], grams: float) -> float:
     """Standard-drink units for this exact logged amount, from the drink's stored
     ABV. `grams` doubles as ml for a drink. 0 unless it's an alcoholic drink.
-
-    Replaces a 3-name whitelist ({beer, wine, cider}) that silently ignored every
-    other alcoholic drink — the same class of gap fixed for caffeine 2026-08-12.
     """
     if not item or item.get("kind") != "drink":
         return 0.0
@@ -163,11 +152,10 @@ def alcohol_units_for_log(item: Optional[dict], grams: float) -> float:
 
 
 # Caffeinated drinks recognised when logged through food logging, so a latte or
-# mocha feeds the same coffee event as the "How I Feel" modal's coffee toggle.
+# mocha feeds the same coffee event as any other logged coffee.
 # Matched as substrings of nutrition.norm_key() (accent-stripped, lowercased),
 # so "Starbucks Caffè Mocha" → "starbucks caffe mocha" hits "caffe" and "mocha".
-# Substring rather than an exact key set on purpose: the previous exact-match on
-# "coffee" silently ignored every espresso drink in the library.
+# Substring rather than an exact key set on purpose, so espresso drinks match too.
 CAFFEINE_DRINK_TOKENS = (
     "coffee", "caffe", "cafe", "espresso", "latte", "mocha", "macchiato",
     "cappuccino", "americano", "flat white", "cortado", "galao", "abatanado",
@@ -206,9 +194,8 @@ def coffee_dupe(events: list, new_dt: datetime.datetime) -> bool:
 
     A latte logged through food and the same cup reported to the assistant are two paths
     to one coffee. caffeine_bump() sums every active coffee, so a duplicate would
-    double the lift — the same double-count class of bug fixed in the predictor on
-    2026-08-12. Two real coffees inside 20 min is not a habit worth modelling; an
-    accidental double-log is.
+    double the lift. Two real coffees inside 20 min is not a habit worth
+    modelling; an accidental double-log is.
     """
     for e in events:
         if e.get("type") != "coffee":
